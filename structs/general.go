@@ -6,8 +6,12 @@ type File struct {
 	Size         string  `json:"size" db:"size"`
 	SizeMb       float64 `json:"sizeMb" db:"size_mb"`
 	UploadedDate string  `json:"uploadedDate" db:"uploaded_date"`
-	UserUuid     string  `json:"userUuid" db:"accounts_id"`
+	UserUuid     string  `json:"userUuid" db:"account_uuid"`
 	BucketUuid   string  `json:"bucketUuid" db:"bucket_uuid"`
+	Part         int64   `json:"part"`
+	Total        int64   `json:"total"`
+	Status       string  `json:"status"`
+	UploadID     string  `json:"uploadId"`
 }
 
 type Bucket struct {

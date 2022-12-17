@@ -16,18 +16,18 @@ func RegisterAccount(c echo.Context) error {
 	db, err := cloud.GetPostgres()
 
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500"})
+		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500", Code: 500})
 	}
 
 	account := new(structs.Account)
 	err = c.Bind(&account)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request 404"})
+		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request 404", Code: 404})
 	}
 
 	id := uuid.New()
 	hashedPassword := utils.HashPassword(account.Password)
-	fmt.Println(hashedPassword)
+
 	_, err = db.Exec(fmt.Sprintf(`insert into accounts (uuid, username, password, email) values ('%s', '%s','%s','%s')`,  id.String(), strings.ToLower(account.Username), string(hashedPassword), account.Email))
 	if err != nil {
 		fmt.Printf("%v", err)
@@ -38,9 +38,20 @@ func RegisterAccount(c echo.Context) error {
 
 func Login(c echo.Context) error {
 	db, err := cloud.GetPostgres()
-
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500", Code: 500})
+	}
+
+	token := c.QueryParam("token")
+	if (token != "") {
+		row := db.QueryRowx(fmt.Sprintf(`select * from accounts where token = '%s'`, token))
+		var account structs.Account
+		row.StructScan(&account)
+		if (account.Token == token) {
+			var temp = &account
+			temp.Password = ""
+			return c.JSON(http.StatusOK, account)
+		}
 	}
 
 	var account structs.Account
@@ -56,25 +67,18 @@ func Login(c echo.Context) error {
 	var dbAccount structs.Account
 	row.StructScan(&dbAccount)
 
-
-	fmt.Printf("%v", dbAccount)
-	fmt.Println()
-	fmt.Printf("%v", account)
-	fmt.Println(utils.HashPassword(account.Password) == dbAccount.Password)
-	fmt.Println(account.Username != dbAccount.Username)
-	fmt.Println(account.Username)
-	fmt.Println(dbAccount.Username)
-	fmt.Println(strings.Compare(account.Username, dbAccount.Username))
 	if (utils.HashPassword(account.Password) != dbAccount.Password || (strings.Compare(account.Username, dbAccount.Username) != 0)) {
 		return c.JSON(404, structs.Message{Message: "Bad Request 404", Code: 404})
 	}
 
-	var a = &dbAccount
-	a.Password = ""
-
-	_, err = db.Exec(fmt.Sprintf(`update accounts set token = \'%s\' where uuid = \'%s\'`, utils.GenerateToken(), dbAccount.Uuid))
+	var tempPointer = &dbAccount
+	tempPointer.Password = ""
+	tempPointer.Token = utils.GenerateToken()
+	//query := fmt.Sprintf(`update accounts set token = '%s' where uuid = '%s'`, dbAccount.Token, dbAccount.Username)
+	query := fmt.Sprintf("update accounts set token = '%s' where uuid = '%s'", dbAccount.Token, dbAccount.Uuid)
+	_, err = db.Exec(query)
 	if err != nil {
-		fmt.Errorf("%v", err)
+		fmt.Printf("%v", err)
 	}
 
 	defer db.Close()

@@ -10,10 +10,9 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-//var env map[string]string, _ := godotenv.Read(".env")
-const BUCKET_SIZE_LIMIT = 150000.00
-
 func main() {
+	
+
 	err := godotenv.Load()
 	if err != nil {
 		fmt.Printf("%v", err)
@@ -34,11 +33,17 @@ func main() {
 		return c.String(200, os.Getenv("ACCESS_KEY"))
 	})
 	router.GET("/get-files/:user", handlers.GetFiles)
-	router.GET("/download/:user/:handle", handlers.DownloadFile)
+	router.GET("/download/:bucketUuid/:fileUuid", handlers.DownloadFile)
+	router.GET("/delete/:fileUuid", handlers.DeleteFile)
 	
 	//POST
 	router.POST("/upload", handlers.UploadFile)
+	router.POST("/prepare-multipart-upload", handlers.PrepareMultipartUpload)
+	router.POST("/multipart-upload", handlers.MultipartUploadFile)
 	router.POST("/login", handlers.Login)
 	router.POST("/register-account", handlers.RegisterAccount)
+
+	//DELETE
+
 	router.Logger.Fatal(router.Start(":8080"))
 }

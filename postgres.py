@@ -19,9 +19,12 @@ try:
     print("PostgreSQL server information")
     print(connection.get_dsn_parameters(), "\n")
     # Executing a SQL query
+    #cursor.execute("drop table accounts")
+    #cursor.execute("create table accounts (uuid varchar(300) not null primary key, username varchar(300), password varchar(500), email varchar(300), token varchar(300))")
 
-    cursor.execute("select * from accounts")
+    #cursor.execute("create table files (uuid varchar(300) not null primary key, name varchar(500), size varchar(100), size_mb float, uploaded_date varchar(200), account_uuid varchar(300), bucket_uuid varchar(300), foreign key (account_uuid) references accounts(uuid), foreign key (bucket_uuid) references buckets(uuid))")
     # Fetch result
+    cursor.execute("select * from accounts")
     result = cursor.fetchall()
     print(result)
     connection.commit()
