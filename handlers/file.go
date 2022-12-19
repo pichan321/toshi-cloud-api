@@ -110,11 +110,26 @@ func PrepareMultipartUpload(c echo.Context) (err error) {
 		return ErrorHandler(c, 500)
 	}
 
+	user := c.FormValue("userUuid")
 	name := c.FormValue("name")
+	size := c.FormValue("size")
 	sizeMb := c.FormValue("sizeMb")
 	actualSize, _ :=  strconv.ParseFloat(sizeMb, 32)
 	actualSize = math.Floor(actualSize*100)/100
 	bucket := utils.GetBucketUuid(actualSize)
+	timestamp := time.Now().Format("2006-01-02 15:04:05 PM")
+
+
+	fileInfo := structs.File{
+		Uuid: utils.GenerateUuid(),
+		Name: name,
+		Size: size,
+		SizeMb: actualSize,
+		UploadedDate: timestamp,
+		UserUuid: user,
+		BucketUuid: bucket.Uuid,
+	}
+
 
 	ctx := context.Background()
 	project, err := cloud.GetStorj(bucket.AccessToken, ctx)
@@ -130,6 +145,7 @@ func PrepareMultipartUpload(c echo.Context) (err error) {
 	begin, _ := project.BeginUpload(ctx, bucket.Name, name, nil)
 	defer db.Close()
 	defer project.Close()
+	defer db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status, uploadId) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '%s', '%s')`, fileInfo.Uuid, fileInfo.Name, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid, "1.0", begin.UploadID))
 	return c.JSON(http.StatusOK, structs.Message{Message: begin.UploadID, Code:200})
 }
 
@@ -140,10 +156,10 @@ func MultipartUploadFile(c echo.Context) (err error) {
 		return ErrorHandler(c, 500)
 	}
 	
-	user := c.FormValue("userUuid")
+	// user := c.FormValue("userUuid")
 	file, err := c.FormFile("file")
 	name := c.FormValue("name")
-	size := c.FormValue("size")
+	// size := c.FormValue("size")
 	//part := c.FormValue("part")
 	sizeMb := c.FormValue("sizeMb")
 	uploadId := c.FormValue("uploadId")
@@ -154,7 +170,7 @@ func MultipartUploadFile(c echo.Context) (err error) {
 	total := c.FormValue("total")
 	totalPart, _ := strconv.ParseInt(total, 10, 64)
 	fmt.Println(actualSize)
-	timestamp := time.Now().Format("2006-01-02 15:04:05 PM")
+	// timestamp := time.Now().Format("2006-01-02 15:04:05 PM")
 	bucket := utils.GetBucketUuid(actualSize)
 	fmt.Printf("%s", "BUCKET INFO")
 	fmt.Printf("%v", bucket.Name)
@@ -165,17 +181,17 @@ func MultipartUploadFile(c echo.Context) (err error) {
 	// }
 
 
-	fileInfo := structs.File{
-		Uuid: utils.GenerateUuid(),
-		Name: name,
-		Size: size,
-		SizeMb: actualSize,
-		UploadedDate: timestamp,
-		UserUuid: user,
-		BucketUuid: bucket.Uuid,
-		Part: currentPart,
-		Total: totalPart,
-	}
+	// fileInfo := structs.File{
+	// 	Uuid: utils.GenerateUuid(),
+	// 	Name: name,
+	// 	Size: size,
+	// 	SizeMb: actualSize,
+	// 	UploadedDate: timestamp,
+	// 	UserUuid: user,
+	// 	BucketUuid: bucket.Uuid,
+	// 	Part: currentPart,
+	// 	Total: totalPart,
+	// }
 
 	src, err := file.Open()
 	if err != nil {
@@ -228,13 +244,13 @@ func MultipartUploadFile(c echo.Context) (err error) {
 	statusFloat := fmt.Sprintf("%.001f", float64(currentPart)/float64(totalPart)*100.0)
 	fmt.Println("Current Part")
 	fmt.Println(statusFloat)
-	if (currentPart == 1) {
-		_, _ = db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status, uploadId) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '%s', '%s')`, fileInfo.Uuid, fileInfo.Name, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid, "1.0", uploadId))
-		fmt.Println(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status, uploadId) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '%s', '%s')`, fileInfo.Uuid, fileInfo.Name, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid, statusFloat, uploadId))
-	} else {
-		_, _ = db.Exec(fmt.Sprintf(`update files set status = '%s' where uploadId = '%s'`, statusFloat, uploadId))
-		fmt.Println(fmt.Sprintf(`update files set status = '%s' where uploadId = '%s'`, statusFloat, uploadId))
-	}
+	// if (currentPart == 1) {
+	// 	_, _ = db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status, uploadId) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '%s', '%s')`, fileInfo.Uuid, fileInfo.Name, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid, "1.0", uploadId))
+	// 	fmt.Println(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status, uploadId) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '%s', '%s')`, fileInfo.Uuid, fileInfo.Name, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid, statusFloat, uploadId))
+	// } else {
+	_, _ = db.Exec(fmt.Sprintf(`update files set status = '%s' where uploadId = '%s'`, statusFloat, uploadId))
+	fmt.Println(fmt.Sprintf(`update files set status = '%s' where uploadId = '%s'`, statusFloat, uploadId))
+
 	//  _, err = db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid) values ('%s', '%s', '%s', '%f','%s', '%s', '%s')`, fileInfo.Uuid, fileInfo.Name, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid))
 
 	// if err != nil {
