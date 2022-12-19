@@ -43,7 +43,7 @@ func UploadFile(c echo.Context) (err error) {
 	
 	 fileInfo := structs.File{
 	 	Uuid: utils.GenerateUuid(),
-	 	Name: name,
+	 	Name: utils.FixEscape(name),
 	 	Size: size,
 	 	SizeMb: actualSize,
 	 	UploadedDate: timestamp,
@@ -122,7 +122,7 @@ func PrepareMultipartUpload(c echo.Context) (err error) {
 
 	fileInfo := structs.File{
 		Uuid: utils.GenerateUuid(),
-		Name: name,
+		Name: utils.FixEscape(name),
 		Size: size,
 		SizeMb: actualSize,
 		UploadedDate: timestamp,
@@ -143,9 +143,12 @@ func PrepareMultipartUpload(c echo.Context) (err error) {
 	}
 
 	begin, _ := project.BeginUpload(ctx, bucket.Name, name, nil)
+
+	db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status, uploadId) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '%s', '%s')`, fileInfo.Uuid, fileInfo.Name, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid, "1.0", begin.UploadID))
+
 	defer db.Close()
 	defer project.Close()
-	defer db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status, uploadId) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '%s', '%s')`, fileInfo.Uuid, fileInfo.Name, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid, "1.0", begin.UploadID))
+	
 	return c.JSON(http.StatusOK, structs.Message{Message: begin.UploadID, Code:200})
 }
 
@@ -416,7 +419,7 @@ func DeleteFile(c echo.Context) (err error) {
 		return fmt.Errorf("could not request access grant: %v", err)
 	}
 
-	_, err = project.DeleteObject(ctx, data["bucket_name"], data["file_name"])
+	_, err = project.DeleteObject(ctx, data["bucket_name"], utils.FixEscape(data["file_name"]))
 	
 	if err != nil {
 		return ErrorHandler(c, 500)
