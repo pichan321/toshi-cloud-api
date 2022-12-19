@@ -17,20 +17,18 @@ func GetBucketUuid(fileSizeMb float64) structs.Bucket {
 	for rows.Next(){
 
 		rows.StructScan(&bucket)
-		if (float32(bucket.Size) + float32(fileSizeMb) <= float32(BUCKET_SIZE_LIMIT)) {
-			fmt.Println("COMPARE")
-			fmt.Println((bucket.Size + float32(fileSizeMb)) <= float32(BUCKET_SIZE_LIMIT))
-			fmt.Println("SIZE ABOUT TO UPLOAD")
-			fmt.Println(bucket.Size + float32(fileSizeMb))
-			fmt.Println("BUCKET CURRENT SIZE")
-			fmt.Println(BUCKET_SIZE_LIMIT)
-			fmt.Println("GET BUCKET")
-			fmt.Printf("%v", bucket)
-
+		fmt.Printf("%v", bucket)
+		if (bucket.Size + float32(fileSizeMb) <= float32(BUCKET_SIZE_LIMIT)) {
+			// fmt.Println("COMPARE")
+			// fmt.Println((bucket.Size + float32(fileSizeMb)) <= float32(BUCKET_SIZE_LIMIT))
+			// fmt.Println("SIZE ABOUT TO UPLOAD")
+			// fmt.Println(bucket.Size + float32(fileSizeMb))
+			// fmt.Println("BUCKET CURRENT SIZE")
+			// fmt.Println(BUCKET_SIZE_LIMIT)
+			// fmt.Println("GET BUCKET")
+			// fmt.Printf("%v", bucket)
 			break
-		
 		}
-		fmt.Println("still finding")
 	}
 	return bucket
 }

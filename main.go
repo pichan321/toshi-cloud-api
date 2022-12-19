@@ -3,7 +3,6 @@ package main
 import (
 	"file-api/handlers"
 	"fmt"
-	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
@@ -20,6 +19,7 @@ func main() {
 
 	router := echo.New()
 
+	//Middlewares
 	router.Use(middleware.CORS())
 	router.Use(middleware.Recover())
 	//router.Use(middleware.Logger())
@@ -28,12 +28,11 @@ func main() {
 	  }))
 	
 	//GET
-
 	router.GET("/", func (c echo.Context) error {
-		return c.String(200, os.Getenv("ACCESS_KEY"))
+		return c.String(200, "TOSHI CLOUD")
 	})
 	router.GET("/get-files/:user", handlers.GetFiles)
-	router.GET("/download/:bucketUuid/:fileUuid", handlers.DownloadFileStream)
+	router.GET("/download/:fileUuid", handlers.DownloadFile)
 	router.GET("/stream/:fileUuid", handlers.StreamFile)
 	router.GET("/delete/:fileUuid", handlers.DeleteFile)
 	
@@ -44,7 +43,5 @@ func main() {
 	router.POST("/login", handlers.Login)
 	router.POST("/register-account", handlers.RegisterAccount)
 	
-	//DELETE
-
 	router.Logger.Fatal(router.Start(":8080"))
 }

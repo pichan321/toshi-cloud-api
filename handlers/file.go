@@ -25,7 +25,7 @@ func UploadFile(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 	if err != nil {
 		log.Printf("%v", err)
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500"})
+		return ErrorHandler(c, 500)
 	}
 	
 	user := c.FormValue("userUuid")
@@ -38,7 +38,7 @@ func UploadFile(c echo.Context) (err error) {
 	bucket := utils.GetBucketUuid(actualSize)
 
 	if bucket.Uuid == "" || bucket.AccessToken == "" {
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500"})
+		return ErrorHandler(c, 500)
 	}
 	
 	 fileInfo := structs.File{
@@ -53,14 +53,14 @@ func UploadFile(c echo.Context) (err error) {
 
 	src, err := file.Open()
 	if err != nil {
-		return  c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500"})
+		return ErrorHandler(c, 500)
 	}
 
 	ctx := context.Background()
 	project, err := cloud.GetStorj(bucket.AccessToken, ctx)
 	if err != nil {
 		log.Printf("could not open project: %v", err)
-		return  c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500"})
+		return ErrorHandler(c, 500)
 	}
 	_, err = project.EnsureBucket(context.Background(), bucket.Name)
 	if err != nil {
@@ -94,21 +94,20 @@ func UploadFile(c echo.Context) (err error) {
 
 	if err != nil {
 	 	log.Printf("%v", err)
-	 	return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500"})
+	 	return ErrorHandler(c, 500)
 	}
 
 	defer db.Close()
 	defer project.Close()
 	defer src.Close()
-	return c.JSON(http.StatusOK, structs.Message{Message: "Uploaded successfully!"})
-
+	return c.JSON(http.StatusOK, structs.Message{Message: "Uploaded successfully!", Code: 200})
 }
 
 func PrepareMultipartUpload(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 	if err != nil {
 		log.Printf("%v", err)
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500"})
+		return ErrorHandler(c, 500)
 	}
 
 	name := c.FormValue("name")
@@ -120,7 +119,7 @@ func PrepareMultipartUpload(c echo.Context) (err error) {
 	ctx := context.Background()
 	project, err := cloud.GetStorj(bucket.AccessToken, ctx)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500"})
+		return ErrorHandler(c, 500)
 	}
 
 	_, err = project.EnsureBucket(ctx, bucket.Name)
@@ -131,14 +130,14 @@ func PrepareMultipartUpload(c echo.Context) (err error) {
 	begin, _ := project.BeginUpload(ctx, bucket.Name, name, nil)
 	defer db.Close()
 	defer project.Close()
-	return c.JSON(http.StatusOK, structs.Message{Message: begin.UploadID})
+	return c.JSON(http.StatusOK, structs.Message{Message: begin.UploadID, Code:200})
 }
 
 func MultipartUploadFile(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 	if err != nil {
 		log.Printf("%v", err)
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500"})
+		return ErrorHandler(c, 500)
 	}
 	
 	user := c.FormValue("userUuid")
@@ -180,7 +179,7 @@ func MultipartUploadFile(c echo.Context) (err error) {
 
 	src, err := file.Open()
 	if err != nil {
-		return  c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500"})
+		return ErrorHandler(c, 500)
 	}
 
 	ctx := context.Background()
@@ -190,25 +189,25 @@ func MultipartUploadFile(c echo.Context) (err error) {
 	if err != nil {
 		fmt.Println("Couldnt open project")
 		log.Printf("could not open project: %v", err)
-		return  c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500"})
+		return ErrorHandler(c, 500)
 	}
 
 	_, err = project.EnsureBucket(ctx, bucket.Name)// bucket.Name
 	if err != nil {
 		fmt.Printf("could not initiate upload: %v", err)
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500"})
+		return ErrorHandler(c, 500)
 	}
 
 	upload, err := project.UploadPart(ctx, bucket.Name, name, uploadId, uint32(currentPart)) //uint32(fileInfo.Part)
 	if err != nil {
 		fmt.Printf("could not initiate upload: %v", err)
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500"})
+		return ErrorHandler(c, 500)
 	}
 
 	data, err := ioutil.ReadAll(src)
 	if err != nil {
 		fmt.Printf("could not initiate upload: %v", err)
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500"})
+		return ErrorHandler(c, 500)
 	}
 	// Copy the data to the upload.
 
@@ -256,79 +255,27 @@ func MultipartUploadFile(c echo.Context) (err error) {
  
 	defer project.Close()
 	defer src.Close()
-	return c.JSON(http.StatusOK, structs.Message{Message: "Uploaded successfully!"})
+	return c.JSON(http.StatusOK, structs.Message{Message: "Uploaded successfully!", Code:200})
 
 }
 
 func DownloadFile(c echo.Context) (err error) {
 	db, _ := cloud.GetPostgres()
-	bucketUuid := c.Param("bucketUuid")
 	fileUuid := c.Param("fileUuid")
 
-	query := fmt.Sprintf(`select access_token, buckets.name as bucket_name, files.name as file_name from (select * from files where files.uuid = '%s') as files join buckets on files.bucket_uuid = buckets.uuid`, fileUuid) 
+	query := fmt.Sprintf(`select access_token, buckets.name as bucket_name, files.name as file_name, buckets.sharelink as share_link from (select * from files where files.uuid = '%s') as files join buckets on files.bucket_uuid = buckets.uuid`, fileUuid) 
 
 	row := db.QueryRowx(query)
 	columnNames, _ := row.Columns()
 
 	data := utils.ScanToMap(columnNames, row)
 
-	if bucketUuid == "" {
-		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request 404"})
-	}
 	if fileUuid == "" {
-		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request 404"})
+		return ErrorHandler(c, 404)
 	}
 
-	ctx := context.Background()
-	project, err := cloud.GetStorj(data["access_token"], ctx)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500", Code: 500})
-	}
-
-	download, err := project.DownloadObject(ctx, data["bucket_name"], data["file_name"], nil)
-	if err != nil {
-		return fmt.Errorf("could not open object: %v", err)
-	}
-
-	fmt.Println("Download Link")
-	fmt.Printf("%v", download.Info())
-	defer download.Close()
-	//	receivedContents, err := io.ReadAll(download)
-	// Read everything from the download stream
-	filename := data["file_name"]
-	buf := make([]byte, 64 * 1024)
-
-	downlaodedFile, err := os.Create(filename)
-
-    for {
-        n, err := io.ReadFull(download, buf)
-	if err == io.EOF {
-		break
-	}
-	if err != nil {
-		fmt.Println(err)
-		continue
-	}
-	downlaodedFile.Write(buf[:n])
-    }
-
-
-
-	// //fileBuffer := bytes.NewBuffer(receivedContents)
-	// if err != nil {
-	// 	return fmt.Errorf("could not read data: %v", err)
-	// }
-
-	// filename := data["file_name"]
-	// downlaodedFile, err := os.Create(filename)
-	// if err != nil {
-	// 	fmt.Printf("%v", err)
-	// }
-	// downlaodedFile.Write(fileBuffer.Bytes())
-
-	defer project.Close()
-	defer os.Remove(filename)
-	return c.Attachment(filename, filename)
+	return c.JSON(http.StatusOK, structs.Message{Message: data["share_link"] + "/" + data["file_name"] + "?wrap=0", Code: 200})
+	
 }
 
 func DownloadFileStream(c echo.Context) (err error) {
@@ -410,13 +357,13 @@ func GetFiles(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 	if err != nil {
 		log.Printf("%v", err)
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500", Code: 500})
+		return ErrorHandler(c, 500)
 	}
 
 	user := c.Param("user")
 
 	if user == "" {
-		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request 404", Code: 404})
+		return ErrorHandler(c, 404)
 	}
 
 	query := fmt.Sprintf("select * from files where account_uuid = '%s'", user)
@@ -456,13 +403,13 @@ func DeleteFile(c echo.Context) (err error) {
 	_, err = project.DeleteObject(ctx, data["bucket_name"], data["file_name"])
 	
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Unable to delete the requested file", Code: 500})
+		return ErrorHandler(c, 500)
 	}
 
 	_, err = db.Exec(fmt.Sprintf(`delete from files where uuid = '%s'`, fileUuid))
 
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Unable to delete the requested file", Code: 500})
+		return ErrorHandler(c, 500)
 	}
 
 	defer db.Close()
@@ -474,7 +421,7 @@ func StreamFile(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500", Code: 500})
+		return ErrorHandler(c, 500)
 	}
 
 	// bucketUuid := c.Param("bucketUuid")
@@ -488,5 +435,5 @@ func StreamFile(c echo.Context) (err error) {
 	data := utils.ScanToMap(columnNames, row)
 	fmt.Println(data)
 	
-	return c.JSON(http.StatusOK, structs.Message{Message: fmt.Sprintf(`%s/%s?wrap=0`, data["share_link"], data["file_name"])})
+	return c.JSON(http.StatusOK, structs.Message{Message: fmt.Sprintf(`%s/%s?wrap=0`, data["share_link"], data["file_name"]), Code: 200})
 }

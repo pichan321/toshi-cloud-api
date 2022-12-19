@@ -16,18 +16,18 @@ func RegisterAccount(c echo.Context) error {
 	db, err := cloud.GetPostgres()
 
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500", Code: 500})
+		return ErrorHandler(c, 500)
 	}
 
 	var account structs.Account
 	
 	err = c.Bind(&account)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request 404", Code: 404})
+		return ErrorHandler(c, 404)
 	}
 
 	if (account.Username == "" || account.Email == "" || account.Password == "") {
-		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request 404", Code: 404})
+		return ErrorHandler(c, 404)
 	}
 
 	var checkAccount structs.Account
@@ -37,7 +37,7 @@ func RegisterAccount(c echo.Context) error {
 
 	fmt.Printf("%v", checkAccount)
 	if (account.Username == checkAccount.Username) {
-		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request 404", Code: 404})
+		return ErrorHandler(c, 404)
 	}
 
 	id := uuid.New()
@@ -54,7 +54,7 @@ func RegisterAccount(c echo.Context) error {
 func Login(c echo.Context) error {
 	db, err := cloud.GetPostgres()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500", Code: 500})
+		return ErrorHandler(c, 500)
 	}
 
 	token := c.QueryParam("token")
@@ -73,7 +73,7 @@ func Login(c echo.Context) error {
 	err = c.Bind(&account)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request 404", Code: 404})
+		return ErrorHandler(c, 404)
 	}
 
 	row := db.QueryRowx(fmt.Sprintf(`select * from accounts where username = '%s' limit 1`, account.Username))
@@ -83,7 +83,7 @@ func Login(c echo.Context) error {
 	row.StructScan(&dbAccount)
 
 	if (utils.HashPassword(account.Password) != dbAccount.Password || (strings.Compare(account.Username, dbAccount.Username) != 0)) {
-		return c.JSON(404, structs.Message{Message: "Bad Request 404", Code: 404})
+		return ErrorHandler(c, 404)
 	}
 
 	var tempPointer = &dbAccount
@@ -97,5 +97,5 @@ func Login(c echo.Context) error {
 	}
 
 	defer db.Close()
-	return c.JSON(200, dbAccount)
+	return c.JSON(http.StatusOK, dbAccount)
 }

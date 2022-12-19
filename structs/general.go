@@ -19,4 +19,5 @@ type Bucket struct {
 	Name        string  `json:"name" db:"name"`
 	AccessToken string  `json:"accessToken" db:"access_token"`
 	Size        float32 `json:"size" db:"size"`
+	ShareLink   string  `json:"shareLink" db:"sharelink"`
 }
