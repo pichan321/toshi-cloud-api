@@ -19,9 +19,24 @@ func RegisterAccount(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500", Code: 500})
 	}
 
-	account := new(structs.Account)
+	var account structs.Account
+	
 	err = c.Bind(&account)
 	if err != nil {
+		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request 404", Code: 404})
+	}
+
+	if (account.Username == "" || account.Email == "" || account.Password == "") {
+		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request 404", Code: 404})
+	}
+
+	var checkAccount structs.Account
+	accounts := db.QueryRowx(fmt.Sprintf(`select * from accounts where username = '%s'`, account.Username))
+	accounts.StructScan(&checkAccount)
+
+
+	fmt.Printf("%v", checkAccount)
+	if (account.Username == checkAccount.Username) {
 		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request 404", Code: 404})
 	}
 

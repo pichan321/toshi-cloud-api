@@ -331,6 +331,81 @@ func DownloadFile(c echo.Context) (err error) {
 	return c.Attachment(filename, filename)
 }
 
+func DownloadFileStream(c echo.Context) (err error) {
+	db, _ := cloud.GetPostgres()
+	bucketUuid := c.Param("bucketUuid")
+	fileUuid := c.Param("fileUuid")
+
+	query := fmt.Sprintf(`select access_token, buckets.name as bucket_name, files.name as file_name from (select * from files where files.uuid = '%s') as files join buckets on files.bucket_uuid = buckets.uuid`, fileUuid) 
+
+	row := db.QueryRowx(query)
+	columnNames, _ := row.Columns()
+
+	data := utils.ScanToMap(columnNames, row)
+
+	if bucketUuid == "" {
+		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request 404"})
+	}
+	if fileUuid == "" {
+		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request 404"})
+	}
+
+	ctx := context.Background()
+	project, err := cloud.GetStorj(data["access_token"], ctx)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500", Code: 500})
+	}
+
+	download, err := project.DownloadObject(ctx, data["bucket_name"], data["file_name"], nil)
+	if err != nil {
+		return fmt.Errorf("could not open object: %v", err)
+	}
+
+	fmt.Println("Download Link")
+	fmt.Printf("%v", download.Info())
+	defer download.Close()
+	//	receivedContents, err := io.ReadAll(download)
+	// Read everything from the download stream
+	filename := data["file_name"]
+	buf := make([]byte, 64 * 1024)
+
+	c.Response().Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename=%s`, filename))
+	c.Response().WriteHeader(http.StatusOK)
+	c.Attachment(filename, filename)
+    for {
+        n, err := io.ReadFull(download, buf)
+	if err == io.EOF {
+		break
+	}
+	if err != nil {
+		fmt.Println(err)
+		continue
+	}
+	// downlaodedFile.Write(buf[:n])
+		a := bytes.NewBuffer(buf[:n])
+		io.Copy(c.Response(), a)
+    }
+
+
+
+	// //fileBuffer := bytes.NewBuffer(receivedContents)
+	// if err != nil {
+	// 	return fmt.Errorf("could not read data: %v", err)
+	// }
+
+	// filename := data["file_name"]
+	// downlaodedFile, err := os.Create(filename)
+	// if err != nil {
+	// 	fmt.Printf("%v", err)
+	// }
+	// downlaodedFile.Write(fileBuffer.Bytes())
+
+	defer project.Close()
+	defer os.Remove(filename)
+	// return c.Attachment(filename, filename)
+	return nil
+}
+
 func GetFiles(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 	if err != nil {
@@ -393,4 +468,25 @@ func DeleteFile(c echo.Context) (err error) {
 	defer db.Close()
 	defer project.Close()
 	return c.JSON(http.StatusOK, structs.Message{Message: "File deleted successfully!", Code: 200})
+}
+
+func StreamFile(c echo.Context) (err error) {
+	db, err := cloud.GetPostgres()
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500", Code: 500})
+	}
+
+	// bucketUuid := c.Param("bucketUuid")
+	fileUuid := c.Param("fileUuid")
+	fmt.Println(fileUuid)
+	query := fmt.Sprintf(`select access_token, buckets.name as bucket_name, files.name as file_name, buckets.shareLink as share_link  from (select * from files where files.uuid = '%s') as files join buckets on files.bucket_uuid = buckets.uuid`, fileUuid) 
+
+	row := db.QueryRowx(query)
+	columnNames, _ := row.Columns()
+
+	data := utils.ScanToMap(columnNames, row)
+	fmt.Println(data)
+	
+	return c.JSON(http.StatusOK, structs.Message{Message: fmt.Sprintf(`%s/%s?wrap=0`, data["share_link"], data["file_name"])})
 }

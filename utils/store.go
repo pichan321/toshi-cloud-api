@@ -17,7 +17,7 @@ func GetBucketUuid(fileSizeMb float64) structs.Bucket {
 	for rows.Next(){
 
 		rows.StructScan(&bucket)
-		if (bucket.Size + float32(fileSizeMb) <= float32(BUCKET_SIZE_LIMIT)) {
+		if (float32(bucket.Size) + float32(fileSizeMb) <= float32(BUCKET_SIZE_LIMIT)) {
 			fmt.Println("COMPARE")
 			fmt.Println((bucket.Size + float32(fileSizeMb)) <= float32(BUCKET_SIZE_LIMIT))
 			fmt.Println("SIZE ABOUT TO UPLOAD")
