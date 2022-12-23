@@ -66,13 +66,13 @@ func UploadFile(c echo.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("could not ensure bucket: %v", err)
 	}
-	
-	upload, err := project.UploadObject(ctx, bucket.Name, name, nil)
+	storjFilename := utils.StorjFilename(fileInfo.Uuid, fileInfo.Name, "___")
+	upload, err := project.UploadObject(ctx, bucket.Name, storjFilename, nil)
 	if err != nil {
 		return fmt.Errorf("could not initiate upload: %v", err)
 	}
 	data, err := ioutil.ReadAll(src)
-	_, err = db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '1')`, fileInfo.Uuid, fileInfo.Name, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid))
+	_, err = db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '1')`, fileInfo.Uuid, storjFilename, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid))
 	
 	if err != nil {
 		return fmt.Errorf("could not upload data: %v", err)
@@ -141,10 +141,10 @@ func PrepareMultipartUpload(c echo.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("could not ensure bucket: %v", err)
 	}
+	storjFilename := utils.StorjFilename(fileInfo.Uuid, fileInfo.Name, "___")
+	begin, _ := project.BeginUpload(ctx, bucket.Name, storjFilename, nil)
 
-	begin, _ := project.BeginUpload(ctx, bucket.Name, name, nil)
-
-	db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status, uploadId) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '%s', '%s')`, fileInfo.Uuid, fileInfo.Name, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid, "1.0", begin.UploadID))
+	db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status, uploadId) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '%s', '%s')`, fileInfo.Uuid, storjFilename, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid, "1.0", begin.UploadID))
 
 	defer db.Close()
 	defer project.Close()
