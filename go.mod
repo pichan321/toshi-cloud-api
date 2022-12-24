@@ -6,6 +6,7 @@ require go.mongodb.org/mongo-driver v1.11.0
 
 require (
 	github.com/calebcase/tmpfile v1.0.3 // indirect
+	github.com/csimplestring/go-csv v0.0.0-20180328183906-5b8b3cd94f2c // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.13.0 // indirect
