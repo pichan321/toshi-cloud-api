@@ -34,6 +34,7 @@ func main() {
 	router.GET("/get-files/:user", handlers.GetFiles)
 	router.GET("/download/:fileUuid", handlers.DownloadFile)
 	router.GET("/stream/:fileUuid", handlers.StreamFile)
+	router.GET("/content/:fileUuid", handlers.GetFileContent)
 	router.GET("/delete/:fileUuid", handlers.DeleteFile)
 	
 	//POST
@@ -42,6 +43,7 @@ func main() {
 	router.POST("/multipart-upload", handlers.MultipartUploadFile)
 	router.POST("/login", handlers.Login)
 	router.POST("/register-account", handlers.RegisterAccount)
+	router.POST("/parse-and-upload", handlers.ParseAndUpload)
 	
 	router.Logger.Fatal(router.Start(":8080"))
 }

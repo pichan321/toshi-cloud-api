@@ -456,3 +456,37 @@ func StreamFile(c echo.Context) (err error) {
 	
 	return c.JSON(http.StatusOK, structs.Message{Message: fmt.Sprintf(`%s/%s?wrap=0`, data["share_link"], data["file_name"]), Code: 200})
 }
+
+func GetFileContent(c echo.Context) (err error) {
+	db, _ := cloud.GetPostgres()
+	fileUuid := c.Param("fileUuid")
+
+	query := fmt.Sprintf(`select access_token, buckets.name as bucket_name, files.name as file_name from (select * from files where files.uuid = '%s') as files join buckets on files.bucket_uuid = buckets.uuid`, fileUuid) 
+
+	row := db.QueryRowx(query)
+	columnNames, _ := row.Columns()
+
+	data := utils.ScanToMap(columnNames, row)
+
+	if fileUuid == "" {
+		return ErrorHandler(c, 404)
+	}
+
+	ctx := context.Background()
+	project, err := cloud.GetStorj(data["access_token"], ctx)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500", Code: 500})
+	}
+
+	download, err := project.DownloadObject(ctx, data["bucket_name"], data["file_name"], nil)
+	if err != nil {
+		return fmt.Errorf("could not open object: %v", err)
+	}
+
+	defer download.Close()
+
+	receivedContents, err := io.ReadAll(download)
+
+	return c.JSON(http.StatusOK, structs.FileContent{Content: fmt.Sprintf("%s", receivedContents)})
+
+}

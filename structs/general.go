@@ -21,3 +21,7 @@ type Bucket struct {
 	Size        float32 `json:"size" db:"size"`
 	ShareLink   string  `json:"shareLink" db:"sharelink"`
 }
+
+type FileContent struct {
+	Content string `json:"content"`
+}
