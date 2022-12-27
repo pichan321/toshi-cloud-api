@@ -59,6 +59,7 @@ func UploadFile(c echo.Context) (err error) {
 	ctx := context.Background()
 	project, err := cloud.GetStorj(bucket.AccessToken, ctx)
 	if err != nil {
+		fmt.Println("Errrrrrrrrrrr")
 		log.Printf("could not open project: %v", err)
 		return ErrorHandler(c, 500, err)
 	}
@@ -134,6 +135,8 @@ func PrepareMultipartUpload(c echo.Context) (err error) {
 	ctx := context.Background()
 	project, err := cloud.GetStorj(bucket.AccessToken, ctx)
 	if err != nil {
+		fmt.Println("Errrrrrrrrrrr multi")
+		
 		return ErrorHandler(c, 500, err)
 	}
 
@@ -142,14 +145,14 @@ func PrepareMultipartUpload(c echo.Context) (err error) {
 		return fmt.Errorf("could not ensure bucket: %v", err)
 	}
 	storjFilename := utils.StorjFilename(fileInfo.Uuid, fileInfo.Name, "___")
-	begin, _ := project.BeginUpload(ctx, bucket.Name, storjFilename, nil)
+	begin, _ := project.BeginUpload(ctx, bucket.Name, utils.FixEscape(storjFilename), nil)
 
-	db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status, uploadId) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '%s', '%s')`, fileInfo.Uuid, storjFilename, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid, "1.0", begin.UploadID))
+	db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status, uploadId) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '%s', '%s')`, fileInfo.Uuid, utils.FixEscape(storjFilename), fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid, "1.0", begin.UploadID))
 
 	defer db.Close()
 	defer project.Close()
 	
-	return c.JSON(http.StatusOK, structs.Message{Message: begin.UploadID, Code:200})
+	return c.JSON(http.StatusOK, structs.Message{Message: begin.UploadID, Code:200, Name: fileInfo.Name})
 }
 
 func MultipartUploadFile(c echo.Context) (err error) {
@@ -161,7 +164,7 @@ func MultipartUploadFile(c echo.Context) (err error) {
 	
 	// user := c.FormValue("userUuid")
 	file, err := c.FormFile("file")
-	name := c.FormValue("name")
+	
 	// size := c.FormValue("size")
 	//part := c.FormValue("part")
 	sizeMb := c.FormValue("sizeMb")
@@ -182,8 +185,10 @@ func MultipartUploadFile(c echo.Context) (err error) {
 	// if bucket.Uuid == "" || bucket.AccessToken == "" {
 	// 	return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error 500"})
 	// }
-
-
+	var filename string
+	row  := db.QueryRowx(fmt.Sprintf("select name from files where uploadid = '%s'", uploadId))
+	row.Scan(&filename)
+	fmt.Println(filename)
 	// fileInfo := structs.File{
 	// 	Uuid: utils.GenerateUuid(),
 	// 	Name: name,
@@ -204,7 +209,7 @@ func MultipartUploadFile(c echo.Context) (err error) {
 	ctx := context.Background()
 	project, err := cloud.GetStorj(bucket.AccessToken, ctx)
 	//project, err := cloud.GetStorj(bucket.AccessToken, ctx)
-	fmt.Println("Couldnt open project")
+
 	if err != nil {
 		fmt.Println("Couldnt open project")
 		log.Printf("could not open project: %v", err)
@@ -217,7 +222,7 @@ func MultipartUploadFile(c echo.Context) (err error) {
 		return ErrorHandler(c, 500, err)
 	}
 
-	upload, err := project.UploadPart(ctx, bucket.Name, name, uploadId, uint32(currentPart)) //uint32(fileInfo.Part)
+	upload, err := project.UploadPart(ctx, bucket.Name, filename, uploadId, uint32(currentPart)) //uint32(fileInfo.Part)
 	if err != nil {
 		fmt.Printf("could not initiate upload: %v", err)
 		return ErrorHandler(c, 500, err)
@@ -231,6 +236,7 @@ func MultipartUploadFile(c echo.Context) (err error) {
 	// Copy the data to the upload.
 
 	buf := bytes.NewBuffer(data)
+
 	_, err = io.Copy(upload, buf)
 
 	if err != nil {
@@ -240,6 +246,7 @@ func MultipartUploadFile(c echo.Context) (err error) {
 
 	// Commit the uploaded object.
 	err = upload.Commit()
+	fmt.Println("Upload commited")
 	if err != nil {
 		return fmt.Errorf("could not commit uploaded object: %v", err)
 	}
@@ -269,9 +276,10 @@ func MultipartUploadFile(c echo.Context) (err error) {
 		fmt.Println(current)
 		fmt.Println("TOTAL")
 		fmt.Println(total)
-		defer project.CommitUpload(ctx, bucket.Name, name, uploadId, nil)
+		defer project.CommitUpload(ctx, bucket.Name, filename, uploadId, nil)
+		fmt.Println(filename)
 	}
- 
+
 	defer project.Close()
 	defer src.Close()
 	return c.JSON(http.StatusOK, structs.Message{Message: "Uploaded successfully!", Code:200})
