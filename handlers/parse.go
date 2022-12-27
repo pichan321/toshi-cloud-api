@@ -18,13 +18,13 @@ import (
 func ParseAndUpload(c echo.Context) error {
 	db, err := cloud.GetPostgres()
 	if err != nil {
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 
 	fileToParse := structs.FileParse{}
 	err = c.Bind(&fileToParse)
 	if err != nil {
-		return ErrorHandler(c, 404)
+		return ErrorHandler(c, 404, err)
 	}
 
 	timestamp := time.Now().Format("2006-01-02 15:04:05 PM")
@@ -45,18 +45,16 @@ func ParseAndUpload(c echo.Context) error {
 		BucketUuid: bucket.Uuid,
 	}
 
-
-
 	ctx := context.Background()
 	project, err := cloud.GetStorj(bucket.AccessToken, ctx)
 	if err != nil {
 		log.Printf("could not open project: %v", err)
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 
 	_, err = project.EnsureBucket(context.Background(), bucket.Name)
 	if err != nil {
-		return fmt.Errorf("could not ensure bucket: %v", err)
+		return ErrorHandler(c, 500, err)
 	}
 	storjFilename := utils.StorjFilename(fileInfo.Uuid, fileInfo.Name, "___")
 	fileType := processParsedText(fileToParse.Content)[0]
@@ -64,7 +62,7 @@ func ParseAndUpload(c echo.Context) error {
 
 	upload, err := project.UploadObject(ctx, bucket.Name, finalFilename, nil)
 	if err != nil {
-		return fmt.Errorf("could not initiate upload: %v", err)
+		return ErrorHandler(c, 500, err)
 	}
 
 	_, err = db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '1')`, fileInfo.Uuid, finalFilename, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid))
@@ -87,7 +85,7 @@ func ParseAndUpload(c echo.Context) error {
 	// Commit the uploaded object.
 	err = upload.Commit()
 	if err != nil {
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 	_, _ = db.Exec(fmt.Sprintf(`update files set status = '100.0' where uuid = '%s'`, fileInfo.Uuid))
 
@@ -111,9 +109,18 @@ func isCSV(content string) string {
 	detector := detector.New()
 	bytesBuffer := bytes.NewBufferString(content)
 	delimiters := detector.DetectDelimiter(bytesBuffer, '"')
-
+	validDelimiters := []rune{',', '\t', '|'}
+	var valid bool = false
 	if len(delimiters) > 0 {
-		return ".csv"
+
+		for _, v := range validDelimiters {
+			if string(v) == delimiters[0] {
+				valid = true
+			}
+		}
+		if valid {
+			return ".csv"
+		} 
 	}
 
 	return ""
