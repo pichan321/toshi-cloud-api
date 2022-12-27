@@ -14,30 +14,26 @@ import (
 
 func RegisterAccount(c echo.Context) error {
 	db, err := cloud.GetPostgres()
-
 	if err != nil {
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 
 	var account structs.Account
-	
 	err = c.Bind(&account)
 	if err != nil {
-		return ErrorHandler(c, 404)
+		return ErrorHandler(c, 404, err)
 	}
 
 	if (account.Username == "" || account.Email == "" || account.Password == "") {
-		return ErrorHandler(c, 404)
+		return ErrorHandler(c, 404, err)
 	}
 
 	var checkAccount structs.Account
 	accounts := db.QueryRowx(fmt.Sprintf(`select * from accounts where username = '%s'`, account.Username))
 	accounts.StructScan(&checkAccount)
 
-
-	fmt.Printf("%v", checkAccount)
 	if (account.Username == checkAccount.Username) {
-		return ErrorHandler(c, 404)
+		return ErrorHandler(c, 404, err)
 	}
 
 	id := uuid.New()
@@ -54,7 +50,7 @@ func RegisterAccount(c echo.Context) error {
 func Login(c echo.Context) error {
 	db, err := cloud.GetPostgres()
 	if err != nil {
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 
 	token := c.QueryParam("token")
@@ -73,7 +69,7 @@ func Login(c echo.Context) error {
 	err = c.Bind(&account)
 
 	if err != nil {
-		return ErrorHandler(c, 404)
+		return ErrorHandler(c, 404, err)
 	}
 
 	row := db.QueryRowx(fmt.Sprintf(`select * from accounts where username = '%s' limit 1`, account.Username))
@@ -83,7 +79,7 @@ func Login(c echo.Context) error {
 	row.StructScan(&dbAccount)
 
 	if (utils.HashPassword(account.Password) != dbAccount.Password || (strings.Compare(account.Username, dbAccount.Username) != 0)) {
-		return ErrorHandler(c, 404)
+		return ErrorHandler(c, 404, err)
 	}
 
 	var tempPointer = &dbAccount

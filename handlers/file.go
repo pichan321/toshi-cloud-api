@@ -25,7 +25,7 @@ func UploadFile(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 	if err != nil {
 		log.Printf("%v", err)
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 	
 	user := c.FormValue("userUuid")
@@ -38,7 +38,7 @@ func UploadFile(c echo.Context) (err error) {
 	bucket := utils.GetBucketUuid(actualSize)
 
 	if bucket.Uuid == "" || bucket.AccessToken == "" {
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 	
 	 fileInfo := structs.File{
@@ -53,14 +53,14 @@ func UploadFile(c echo.Context) (err error) {
 
 	src, err := file.Open()
 	if err != nil {
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 
 	ctx := context.Background()
 	project, err := cloud.GetStorj(bucket.AccessToken, ctx)
 	if err != nil {
 		log.Printf("could not open project: %v", err)
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 	_, err = project.EnsureBucket(context.Background(), bucket.Name)
 	if err != nil {
@@ -94,7 +94,7 @@ func UploadFile(c echo.Context) (err error) {
 
 	if err != nil {
 	 	log.Printf("%v", err)
-	 	return ErrorHandler(c, 500)
+	 	return ErrorHandler(c, 500, err)
 	}
 
 	defer db.Close()
@@ -107,7 +107,7 @@ func PrepareMultipartUpload(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 	if err != nil {
 		log.Printf("%v", err)
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 
 	user := c.FormValue("userUuid")
@@ -134,7 +134,7 @@ func PrepareMultipartUpload(c echo.Context) (err error) {
 	ctx := context.Background()
 	project, err := cloud.GetStorj(bucket.AccessToken, ctx)
 	if err != nil {
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 
 	_, err = project.EnsureBucket(ctx, bucket.Name)
@@ -156,7 +156,7 @@ func MultipartUploadFile(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 	if err != nil {
 		log.Printf("%v", err)
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 	
 	// user := c.FormValue("userUuid")
@@ -198,7 +198,7 @@ func MultipartUploadFile(c echo.Context) (err error) {
 
 	src, err := file.Open()
 	if err != nil {
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 
 	ctx := context.Background()
@@ -208,25 +208,25 @@ func MultipartUploadFile(c echo.Context) (err error) {
 	if err != nil {
 		fmt.Println("Couldnt open project")
 		log.Printf("could not open project: %v", err)
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 
 	_, err = project.EnsureBucket(ctx, bucket.Name)// bucket.Name
 	if err != nil {
 		fmt.Printf("could not initiate upload: %v", err)
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 
 	upload, err := project.UploadPart(ctx, bucket.Name, name, uploadId, uint32(currentPart)) //uint32(fileInfo.Part)
 	if err != nil {
 		fmt.Printf("could not initiate upload: %v", err)
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 
 	data, err := ioutil.ReadAll(src)
 	if err != nil {
 		fmt.Printf("could not initiate upload: %v", err)
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 	// Copy the data to the upload.
 
@@ -290,10 +290,11 @@ func DownloadFile(c echo.Context) (err error) {
 	data := utils.ScanToMap(columnNames, row)
 
 	if fileUuid == "" {
-		return ErrorHandler(c, 404)
+		return ErrorHandler(c, 404, err)
 	}
-
-	return c.JSON(http.StatusOK, structs.Message{Message: data["share_link"] + "/" + data["file_name"] + "?wrap=0", Code: 200})
+	fmt.Println("Download File: ")
+	fmt.Println(data["share_link"] + "/" + utils.FixEscape(data["file_name"]) + "?wrap=0")
+	return c.JSON(http.StatusOK, structs.Message{Message: data["share_link"] + "/" + utils.FixEscape(data["file_name"]) + "?wrap=0", Code: 200})
 	
 }
 
@@ -376,13 +377,13 @@ func GetFiles(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 	if err != nil {
 		log.Printf("%v", err)
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 
 	user := c.Param("user")
 
 	if user == "" {
-		return ErrorHandler(c, 404)
+		return ErrorHandler(c, 404, nil)
 	}
 
 	query := fmt.Sprintf("select * from files where account_uuid = '%s'", user)
@@ -422,13 +423,13 @@ func DeleteFile(c echo.Context) (err error) {
 	_, err = project.DeleteObject(ctx, data["bucket_name"], utils.FixEscape(data["file_name"]))
 	
 	if err != nil {
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 
 	_, err = db.Exec(fmt.Sprintf(`delete from files where uuid = '%s'`, fileUuid))
 
 	if err != nil {
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 
 	defer db.Close()
@@ -440,7 +441,7 @@ func StreamFile(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 
 	if err != nil {
-		return ErrorHandler(c, 500)
+		return ErrorHandler(c, 500, err)
 	}
 
 	// bucketUuid := c.Param("bucketUuid")
@@ -453,7 +454,7 @@ func StreamFile(c echo.Context) (err error) {
 
 	data := utils.ScanToMap(columnNames, row)
 	fmt.Println(data)
-	
+	fmt.Println(fmt.Sprintf(`%s/%s?wrap=0`, data["share_link"], data["file_name"]))
 	return c.JSON(http.StatusOK, structs.Message{Message: fmt.Sprintf(`%s/%s?wrap=0`, data["share_link"], data["file_name"]), Code: 200})
 }
 
@@ -469,7 +470,7 @@ func GetFileContent(c echo.Context) (err error) {
 	data := utils.ScanToMap(columnNames, row)
 
 	if fileUuid == "" {
-		return ErrorHandler(c, 404)
+		return ErrorHandler(c, 404, err)
 	}
 
 	ctx := context.Background()
