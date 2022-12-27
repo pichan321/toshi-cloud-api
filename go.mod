@@ -7,6 +7,7 @@ require go.mongodb.org/mongo-driver v1.11.0
 require (
 	github.com/calebcase/tmpfile v1.0.3 // indirect
 	github.com/csimplestring/go-csv v0.0.0-20180328183906-5b8b3cd94f2c // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.13.0 // indirect
@@ -17,9 +18,12 @@ require (
 	github.com/jackc/pgtype v1.12.0 // indirect
 	github.com/jmoiron/sqlx v1.3.5 // indirect
 	github.com/joho/godotenv v1.4.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/spacemonkeygo/monkit/v3 v3.0.17 // indirect
+	github.com/stretchr/testify v1.8.1 // indirect
 	github.com/vivint/infectious v0.0.0-20200605153912-25a574ae18a3 // indirect
 	github.com/zeebo/errs v1.3.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	storj.io/common v0.0.0-20220414110316-a5cb7172d6bf // indirect
 	storj.io/drpc v0.0.30 // indirect
 	storj.io/uplink v1.9.0 // indirect
