@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"file-api/cloud"
 	"file-api/structs"
 	"file-api/utils"
@@ -57,7 +58,7 @@ func ParseAndUpload(c echo.Context) error {
 		return ErrorHandler(c, 500, err)
 	}
 	storjFilename := utils.StorjFilename(fileInfo.Uuid, fileInfo.Name, "___")
-	fileType := processParsedText(fileToParse.Content)[0]
+	fileType := processParsedText(fileToParse.Content)
 	finalFilename := storjFilename + fileType
 
 	upload, err := project.UploadObject(ctx, bucket.Name, finalFilename, nil)
@@ -94,15 +95,21 @@ func ParseAndUpload(c echo.Context) error {
 	return nil
 }
 
-func processParsedText(content string) []string {
+func processParsedText(content string) string {
 	check := []string{
+		isJSON(content),
 		isCSV(content),
 	}
-
-	if check[0] == "" {
-		return []string{".txt"}
+	fmt.Println("Processed")
+	fmt.Printf("%v", check)
+	
+	for _, v := range check {
+		if v != "" {
+			return v
+		}
 	}
-	return check
+
+	return check[0]
 }
 
 func isCSV(content string) string {
@@ -123,5 +130,15 @@ func isCSV(content string) string {
 		} 
 	}
 
+	return ""
+}
+
+func isJSON(content string) string {
+	var js interface{}
+	fmt.Println("Detecting JSON")
+	if  (json.Unmarshal([]byte(content), &js) == nil) {
+		fmt.Println("is JSON file")
+		return ".json"
+	}
 	return ""
 }
