@@ -10,7 +10,9 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"file-api/cloud"
@@ -409,6 +411,11 @@ func GetFiles(c echo.Context) (err error) {
 
 	}
 
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].UploadedDate > files[j].UploadedDate
+	})
+	
+
 	defer db.Close()
 	return c.JSON(http.StatusOK, files)
 }
@@ -489,13 +496,31 @@ func GetFileContent(c echo.Context) (err error) {
 
 	download, err := project.DownloadObject(ctx, data["bucket_name"], data["file_name"], nil)
 	if err != nil {
-		return fmt.Errorf("could not open object: %v", err)
+		return ErrorHandler(c, 500, err)
 	}
 
 	defer download.Close()
 
 	receivedContents, err := io.ReadAll(download)
 
-	return c.JSON(http.StatusOK, structs.FileContent{Content: fmt.Sprintf("%s", receivedContents)})
+	fileType := strings.Split(data["file_name"], ".")[1]
+
+	if fileType == "txt" {
+		return c.Blob(http.StatusOK, "text/plain", receivedContents)
+	}
+
+	imagesSlice := []string{"jpg", "png"} 
+	var imagesInterfaceSlice []interface{}
+	for _, v := range imagesSlice {
+		imagesInterfaceSlice = append(imagesInterfaceSlice, v)
+	}
+	
+
+
+	if utils.ExistsWithin(imagesInterfaceSlice, fileType) {
+		return c.Blob(http.StatusOK, "image/JPG", receivedContents)
+	}
+
+	return nil
 
 }
