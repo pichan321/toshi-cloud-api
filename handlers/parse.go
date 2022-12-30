@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/csimplestring/go-csv/detector"
@@ -34,13 +35,13 @@ func ParseAndUpload(c echo.Context) error {
 		temp := &fileToParse
 		temp.Filename = timestamp
 	}
-
+	fileSize := len([]byte(fileToParse.Content)) / 1000000
 	bucket := utils.GetBucketUuid(1.0)
 	fileInfo := structs.File{
 		Uuid: utils.GenerateUuid(),
 		Name: utils.FixEscape(fileToParse.Filename),
-		Size: "",
-		SizeMb: 0,
+		Size: strconv.Itoa(fileSize) + " MB",
+		SizeMb: float64(fileSize),
 		UploadedDate: timestamp,
 		UserUuid: fileToParse.User,
 		BucketUuid: bucket.Uuid,
@@ -69,7 +70,7 @@ func ParseAndUpload(c echo.Context) error {
 	_, err = db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '1')`, fileInfo.Uuid, finalFilename, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid))
 	
 	if err != nil {
-		return fmt.Errorf("could not upload data: %v", err)
+		return ErrorHandler(c, 500, err)
 	}
 
 
@@ -109,7 +110,7 @@ func processParsedText(content string) string {
 		}
 	}
 
-	return check[0]
+	return ".txt"
 }
 
 func isCSV(content string) string {
