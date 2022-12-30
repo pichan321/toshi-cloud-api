@@ -12,6 +12,7 @@ type File struct {
 	Total        int64   `json:"total"`
 	Status       string  `json:"status"`
 	UploadID     string  `json:"uploadId"`
+	Hidden       bool    `json:"hidden" db:"hidden"`
 }
 
 type Bucket struct {

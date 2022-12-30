@@ -524,3 +524,44 @@ func GetFileContent(c echo.Context) (err error) {
 	return nil
 
 }
+
+func HideFile(c echo.Context) error {
+	db, err := cloud.GetPostgres()
+	if err != nil {
+		return ErrorHandler(c, 500, err)
+	}
+	
+	fileUuid := c.Param("fileUuid")
+	if fileUuid == "" {
+		return ErrorHandlerWithMsg(c, 404, err, "The file does not exist.")
+	}
+
+	_, err = db.Exec(fmt.Sprintf(`UPDATE files SET hidden = true where uuid = '%s'`, fileUuid))
+	if err != nil {
+		return ErrorHandlerWithMsg(c, 404, err, "Could not hide the provided file.")
+	}
+	defer db.Close()
+
+	return Success(c, "File is hidden")
+}
+
+
+func UnhideFile(c echo.Context) error {
+	db, err := cloud.GetPostgres()
+	if err != nil {
+		return ErrorHandler(c, 500, err)
+	}
+	
+	fileUuid := c.Param("fileUuid")
+	if fileUuid == "" {
+		return ErrorHandlerWithMsg(c, 404, err, "The file does not exist.")
+	}
+
+	_, err = db.Exec(fmt.Sprintf(`UPDATE files SET hidden = false where uuid = '%s'`, fileUuid))
+	if err != nil {
+		return ErrorHandlerWithMsg(c, 404, err, "Could not hide the provided file.")
+	}
+	defer db.Close()
+
+	return Success(c, "File is unhidden")
+}
