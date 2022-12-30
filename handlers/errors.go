@@ -8,6 +8,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+func Success(c echo.Context, message string) error {
+	return c.JSON(http.StatusOK, structs.Message{Message: message, Code: 200, Error: "none"})
+}
+
 func ErrorHandler(c echo.Context, code int, err error) error {
 	switch (code) {
 		case 404: return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Bad Request", Code: 404, Error: fmt.Sprintf("%s", err)})

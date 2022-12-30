@@ -33,6 +33,8 @@ func main() {
 	})
 	router.GET("/get-files/:user", handlers.GetFiles)
 	router.GET("/download/:fileUuid", handlers.DownloadFile)
+	router.GET("/hide/:fileUuid", handlers.HideFile)
+	router.GET("/unhide/:fileUuid", handlers.UnhideFile)
 	router.GET("/stream/:fileUuid", handlers.StreamFile)
 	router.GET("/content/:fileUuid", handlers.GetFileContent)
 	router.GET("/delete/:fileUuid", handlers.DeleteFile)
