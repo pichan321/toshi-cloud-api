@@ -509,16 +509,16 @@ func GetFileContent(c echo.Context) (err error) {
 		return c.Blob(http.StatusOK, "text/plain", receivedContents)
 	}
 
-	imagesSlice := []string{"jpg", "png"} 
+	imagesSlice := []string{"jpg", "png", "gif"} 
 	var imagesInterfaceSlice []interface{}
 	for _, v := range imagesSlice {
 		imagesInterfaceSlice = append(imagesInterfaceSlice, v)
 	}
 	
 
-
-	if utils.ExistsWithin(imagesInterfaceSlice, fileType) {
-		return c.Blob(http.StatusOK, "image/JPG", receivedContents)
+	imageType := utils.ExistsWithin(imagesInterfaceSlice, fileType)
+	if  imageType != "" {
+		return c.Blob(http.StatusOK, fmt.Sprintf(`image/%s`, imageType), receivedContents)
 	}
 
 	return nil

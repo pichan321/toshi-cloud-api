@@ -1,11 +1,11 @@
 package utils
 
-func ExistsWithin(arr []interface{}, element interface{}) bool {
+func ExistsWithin(arr []interface{}, element interface{}) (interface{}) {
 	for _, v := range arr {
 		if v == element {
-			return true
+			return v
 		}
 	}
 
-	return false
+	return nil
 }
