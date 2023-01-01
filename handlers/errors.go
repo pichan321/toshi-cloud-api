@@ -14,7 +14,8 @@ func Success(c echo.Context, message string) error {
 
 func ErrorHandler(c echo.Context, code int, err error) error {
 	switch (code) {
-		case 404: return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Bad Request", Code: 404, Error: fmt.Sprintf("%s", err)})
+		case 400: return c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request", Code: 400, Error: fmt.Sprintf("%s", err)})
+		case 404: return c.JSON(http.StatusNotFound, structs.Message{Message: "Bad Request", Code: 404, Error: fmt.Sprintf("%s", err)})
 		case 500: return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal Server Error", Code: 500, Error: fmt.Sprintf("%s", err)})
 	}
 	return nil
@@ -22,7 +23,8 @@ func ErrorHandler(c echo.Context, code int, err error) error {
 
 func ErrorHandlerWithMsg(c echo.Context, code int, err error, message string) error {
 	switch (code) {
-		case 404: return c.JSON(http.StatusInternalServerError, structs.Message{Message: message, Code: 404, Error: fmt.Sprintf("%s", err)})
+		case 400: return c.JSON(http.StatusBadRequest, structs.Message{Message: message, Code: 400, Error: fmt.Sprintf("%s", err)})
+		case 404: return c.JSON(http.StatusNotFound, structs.Message{Message: message, Code: 404, Error: fmt.Sprintf("%s", err)})
 		case 500: return c.JSON(http.StatusInternalServerError, structs.Message{Message: message, Code: 500, Error: fmt.Sprintf("%s", err)})
 	}
 	return nil
