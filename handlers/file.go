@@ -94,10 +94,16 @@ func UploadFile(c echo.Context) (err error) {
 		return fmt.Errorf("could not commit uploaded object: %v", err)
 	}
 	_, err = db.Exec(fmt.Sprintf(`update files set status = '100.0' where uuid = '%s'`, fileInfo.Uuid))
-
 	if err != nil {
 	 	log.Printf("%v", err)
 	 	return ErrorHandler(c, 500, err)
+	}
+	err = utils.UpdateBucketSize(fileInfo.BucketUuid, fileInfo.SizeMb)
+	fmt.Println("Check")
+	fmt.Println(fileInfo.BucketUuid)
+	fmt.Println(fileInfo.SizeMb)
+	if err != nil {
+		return ErrorHandler(c, 500, err)
 	}
 
 	defer db.Close()
@@ -280,7 +286,12 @@ func MultipartUploadFile(c echo.Context) (err error) {
 		fmt.Println(total)
 		defer project.CommitUpload(ctx, bucket.Name, filename, uploadId, nil)
 		fmt.Println(filename)
+		err = utils.UpdateBucketSize(bucket.Uuid, actualSize)
+		if err != nil {
+			return ErrorHandler(c, 500, err)
+		}
 	}
+	
 
 	defer project.Close()
 	defer src.Close()
@@ -302,8 +313,13 @@ func DownloadFile(c echo.Context) (err error) {
 	if fileUuid == "" {
 		return ErrorHandler(c, 404, err)
 	}
+
+	if data["share_link"] == "" || data["file_name"] == "" {
+		return ErrorHandlerWithMsg(c, 404, nil, "Could not get download link")
+	}
 	fmt.Println("Download File: ")
 	fmt.Println(data["share_link"] + "/" + utils.FixEscape(data["file_name"]) + "?wrap=0")
+
 	return c.JSON(http.StatusOK, structs.Message{Message: data["share_link"] + "/" + utils.FixEscape(data["file_name"]) + "?wrap=0", Code: 200})
 	
 }
@@ -424,7 +440,7 @@ func DeleteFile(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 	fileUuid := c.Param("fileUuid")
 
-	query := fmt.Sprintf(`select access_token, buckets.name as bucket_name, files.name as file_name from (select * from files where files.uuid = '%s') as files join buckets on files.bucket_uuid = buckets.uuid`, fileUuid) 
+	query := fmt.Sprintf(`select access_token, buckets.name as bucket_name, buckets.uuid as bucket_uuid, files.name as file_name, files.size_mb as file_size from (select * from files where files.uuid = '%s') as files join buckets on files.bucket_uuid = buckets.uuid`, fileUuid) 
 	row := db.QueryRowx(query)
 	columnNames, _ := row.Columns()
 	data := utils.ScanToMap(columnNames, row)
@@ -443,6 +459,11 @@ func DeleteFile(c echo.Context) (err error) {
 
 	_, err = db.Exec(fmt.Sprintf(`delete from files where uuid = '%s'`, fileUuid))
 
+	if err != nil {
+		return ErrorHandler(c, 500, err)
+	}
+	fileSize, _ := strconv.ParseFloat(data["file_size"], 32)
+	err = utils.UpdateBucketSize(data["bucket_uuid"], -fileSize)
 	if err != nil {
 		return ErrorHandler(c, 500, err)
 	}
