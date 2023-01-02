@@ -59,7 +59,7 @@ func ParseAndUpload(c echo.Context) error {
 		return ErrorHandler(c, 500, err)
 	}
 	storjFilename := utils.StorjFilename(fileInfo.Uuid, fileInfo.Name, "___")
-	fileType := processParsedText(fileToParse.Content)
+	fileType := ProcessParsedText(fileToParse.Content)
 	finalFilename := storjFilename + fileType
 
 	upload, err := project.UploadObject(ctx, bucket.Name, finalFilename, nil)
@@ -96,14 +96,12 @@ func ParseAndUpload(c echo.Context) error {
 	return nil
 }
 
-func processParsedText(content string) string {
+func ProcessParsedText(content string) string {
 	check := []string{
 		isJSON(content),
 		isCSV(content),
 	}
-	fmt.Println("Processed")
-	fmt.Printf("%v", check)
-	
+
 	for _, v := range check {
 		if v != "" {
 			return v
