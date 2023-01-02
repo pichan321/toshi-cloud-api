@@ -3,6 +3,8 @@ package main
 import (
 	"file-api/handlers"
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
@@ -10,7 +12,23 @@ import (
 )
 
 func main() {
-	
+	config := middleware.RateLimiterConfig{
+		Skipper: middleware.DefaultSkipper,
+		Store: middleware.NewRateLimiterMemoryStoreWithConfig(
+			middleware.RateLimiterMemoryStoreConfig{Rate: 10, Burst: 10, ExpiresIn: 3 * time.Minute},
+		),
+		IdentifierExtractor: func(ctx echo.Context) (string, error) {
+			id := ctx.RealIP()
+			return id, nil
+		},
+		ErrorHandler: func(context echo.Context, err error) error {
+			return context.JSON(http.StatusForbidden, nil)
+		},
+		DenyHandler: func(context echo.Context, identifier string,err error) error {
+			return context.JSON(http.StatusTooManyRequests, nil)
+		},
+	}
+
 
 	err := godotenv.Load()
 	if err != nil {
@@ -22,7 +40,7 @@ func main() {
 	//Middlewares
 	router.Use(middleware.CORS())
 	router.Use(middleware.Recover())
-	//router.Use(middleware.Logger())
+	router.Use(middleware.RateLimiterWithConfig(config))
 	router.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format: "[${status}], uri=${uri}, ${method}\n",
 		Output: router.StdLogger.Writer(),
