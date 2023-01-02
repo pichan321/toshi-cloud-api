@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"file-api/cloud"
 	"file-api/structs"
 	"file-api/utils"
@@ -21,7 +22,7 @@ func RegisterAccount(c echo.Context) error {
 	var account structs.Account
 	err = c.Bind(&account)
 	if err != nil {
-		return ErrorHandler(c, 404, err)
+		return ErrorHandler(c, 400, err)
 	}
 
 	if (account.Username == "" || account.Email == "" || account.Password == "") {
@@ -29,11 +30,11 @@ func RegisterAccount(c echo.Context) error {
 	}
 
 	var checkAccount structs.Account
-	accounts := db.QueryRowx(fmt.Sprintf(`select * from accounts where username = '%s'`, account.Username))
+	accounts := db.QueryRowx(fmt.Sprintf(`select * from accounts where username = '%s' or email = '%s'`, account.Username, account.Email))
 	accounts.StructScan(&checkAccount)
 
-	if (account.Username == checkAccount.Username) {
-		return ErrorHandler(c, 404, err)
+	if (account.Username == checkAccount.Username) || (account.Email == checkAccount.Email) {
+		return ErrorHandler(c, 400, errors.New("Cannot register account!"))
 	}
 
 	id := uuid.New()
@@ -44,7 +45,7 @@ func RegisterAccount(c echo.Context) error {
 		fmt.Printf("%v", err)
 	}
 	defer db.Close()
-	return c.JSON(http.StatusOK,  id.String() + "\t" + account.Username + "\t" + hashedPassword + "\t" + account.Email)
+	return c.String(http.StatusOK,  "Account successfully registered!")
 }
 
 func Login(c echo.Context) error {
@@ -74,7 +75,6 @@ func Login(c echo.Context) error {
 
 	row := db.QueryRowx(fmt.Sprintf(`select * from accounts where username = '%s' limit 1`, account.Username))
 
-	//var dbAccount structs.Account
 	var dbAccount structs.Account
 	row.StructScan(&dbAccount)
 
