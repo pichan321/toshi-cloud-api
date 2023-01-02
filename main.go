@@ -24,7 +24,7 @@ func main() {
 	router.Use(middleware.Recover())
 	//router.Use(middleware.Logger())
 	router.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: "uri=${uri}, ${method},  [${status}]\n",
+		Format: "[${status}], uri=${uri}, ${method}\n",
 		Output: router.StdLogger.Writer(),
 	  }))
 	
