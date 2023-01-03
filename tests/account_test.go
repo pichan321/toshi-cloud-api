@@ -84,6 +84,6 @@ func TestRegisterNewAccount(t *testing.T) {
 	db, err := cloud.GetPostgres()
 	assert.NoError(t, err)
 	defer db.Exec(fmt.Sprintf(`DELETE FROM accounts WHERE username = '%s'`, user.Username))
-	assert.Equal(t, "Account successfully registered!", rec.Body.String())
+	assert.Equal(t, "{\"message\":\"\",\"code\":200}\n", rec.Body.String())
 	assert.Equal(t, 200, c.Response().Status)
 }

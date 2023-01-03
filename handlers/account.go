@@ -25,8 +25,13 @@ func RegisterAccount(c echo.Context) error {
 		return ErrorHandler(c, 400, err)
 	}
 
+	err = utils.ValidateEmail(account.Email) 
+	if err != nil {
+		return ErrorHandler(c, 400, errors.New("invalid email address"))
+	}
+
 	if (account.Username == "" || account.Email == "" || account.Password == "") {
-		return ErrorHandler(c, 404, err)
+		return ErrorHandler(c, 400, errors.New("bad request"))
 	}
 
 	var checkAccount structs.Account
@@ -45,7 +50,7 @@ func RegisterAccount(c echo.Context) error {
 		fmt.Printf("%v", err)
 	}
 	defer db.Close()
-	return c.String(http.StatusOK,  "Account successfully registered!")
+	return c.JSON(http.StatusOK, structs.Message{Code: 200})
 }
 
 func Login(c echo.Context) error {

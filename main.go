@@ -2,6 +2,7 @@ package main
 
 import (
 	"file-api/handlers"
+	"file-api/middlewares"
 	"fmt"
 	"net/http"
 	"time"
@@ -42,7 +43,7 @@ func main() {
 	router.Use(middleware.Recover())
 	router.Use(middleware.RateLimiterWithConfig(config))
 	router.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: "[${status}], uri=${uri}, ${method}\n",
+		Format: "[${status}] uri=${uri} [${method}]\n",
 		Output: router.StdLogger.Writer(),
 	  }))
 	
@@ -51,13 +52,7 @@ func main() {
 		return c.String(200, "TOSHI CLOUD")
 	})
 	router.GET("/get-files/:user", handlers.GetFiles)
-	router.GET("/download/:fileUuid", handlers.DownloadFile)
-	router.GET("/hide/:fileUuid", handlers.HideFile)
-	router.GET("/unhide/:fileUuid", handlers.UnhideFile)
-	router.GET("/stream/:fileUuid", handlers.StreamFile)
-	router.GET("/content/:fileUuid", handlers.GetFileContent)
-	router.GET("/delete/:fileUuid", handlers.DeleteFile)
-	
+
 	//POST
 	router.POST("/upload", handlers.UploadFile)
 	router.POST("/prepare-multipart-upload", handlers.PrepareMultipartUpload)
@@ -65,6 +60,15 @@ func main() {
 	router.POST("/login", handlers.Login)
 	router.POST("/register-account", handlers.RegisterAccount)
 	router.POST("/parse-and-upload", handlers.ParseAndUpload)
+
+	//FILE GROUP
+	file := router.Group("/file", middlewares.CheckFileHandle)
+	file.GET("/download/:fileUuid", handlers.DownloadFile)
+	file.GET("/hide/:fileUuid", handlers.HideFile)
+	file.GET("/unhide/:fileUuid", handlers.UnhideFile)
+	file.GET("/stream/:fileUuid", handlers.StreamFile)
+	file.GET("/content/:fileUuid", handlers.GetFileContent)
+	file.GET("/delete/:fileUuid", handlers.DeleteFile)
 	
 	router.Logger.Fatal(router.Start(":8080"))
 }
