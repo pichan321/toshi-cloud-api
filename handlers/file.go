@@ -463,7 +463,7 @@ func DeleteFile(c echo.Context) (err error) {
 		return ErrorHandler(c, 500, err)
 	}
 	fileSize, _ := strconv.ParseFloat(data["file_size"], 32)
-	err = utils.UpdateBucketSize(data["bucket_uuid"], -fileSize)
+	err = utils.UpdateBucketSize(data["bucket_uuid"], -(math.Abs(fileSize)))
 	if err != nil {
 		return ErrorHandler(c, 500, err)
 	}
