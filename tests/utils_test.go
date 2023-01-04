@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"file-api/cloud"
 	"file-api/utils"
 	"strings"
 	"testing"
@@ -27,4 +28,35 @@ func TestGenerateToken(t *testing.T) {
 	token := utils.GenerateToken()
 	assert.Equal(t, 32, len(token))
 } 
+
+func TestUpdateBucketSize(t *testing.T) {
+	db, err := cloud.GetPostgres()
+	assert.NoError(t, err)
+	var dbSize float64
+	var updatedDbSize float64
+
+	row := db.QueryRowx("select size from buckets where uuid = '0'")
+	err = row.Scan(&dbSize)
+	assert.NoError(t, err)
+	err = utils.UpdateBucketSize("0", -5.0)
+	assert.NoError(t, err)
+	row = db.QueryRowx("select size from buckets where uuid = '0'")
+	err = row.Scan(&updatedDbSize)
+	assert.NoError(t, err)
+	assert.Equal(t, dbSize - 5., updatedDbSize)
+
+
+	row = db.QueryRowx("select size from buckets where uuid = '0'")
+	err = row.Scan(&dbSize)
+	assert.NoError(t, err)
+	err = utils.UpdateBucketSize("0", 5.0)
+	assert.NoError(t, err)
+	row = db.QueryRowx("select size from buckets where uuid = '0'")
+	err = row.Scan(&updatedDbSize)
+	assert.NoError(t, err)
+	assert.Equal(t, dbSize + 5.0, updatedDbSize)
+
+
+	defer db.Close()
+}
 
