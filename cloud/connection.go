@@ -15,17 +15,16 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-
 func GetPostgres() (*sqlx.DB, error) {
 	postgresqlDbInfo := fmt.Sprintf("host=%s port=%d user=%s "+
-    "password=%s dbname=%s sslmode=verify-full",
+    "password=%s dbname=%s", // sslmode=verify-full
     "pichan-2902.g8z.cockroachlabs.cloud", 26257, "pichan", "OGdtBNEQGFcGS818wuLbxA", "toshi-cloud")
 	db, err := sqlx.Open("postgres", postgresqlDbInfo)
 
 	if err != nil {
         return nil, errors.New("could not connect to Postgres")
     }
-	
+
 	return db, nil
 }
 

@@ -19,6 +19,7 @@ import (
 	"file-api/structs"
 	"file-api/utils"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 )
 
@@ -403,7 +404,16 @@ func GetFiles(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 	if err != nil {
 		log.Printf("%v", err)
+		log.Println("DB ERROR")
 		return ErrorHandler(c, 500, err)
+	}
+
+	search := c.QueryParam("search")
+	showHidden := c.QueryParam("showHidden")
+	includeHidden := false
+
+	if showHidden == "true" {
+		includeHidden = true
 	}
 
 	user := c.Param("user")
@@ -412,9 +422,17 @@ func GetFiles(c echo.Context) (err error) {
 		return ErrorHandler(c, 404, nil)
 	}
 
-	query := fmt.Sprintf("select * from files where account_uuid = '%s'", user)
+	var query string = ""
+	var rows *sqlx.Rows
 
-	rows, _ := db.Queryx(query)
+	if search == "" {
+		query = fmt.Sprintf(`select * from files where account_uuid = '%s'`, user)
+		rows, _ = db.Queryx(query)
+	} else {
+		query = fmt.Sprintf("select * from files where account_uuid = '%s' and name ILIKE '%%%s%%' ", user, search)
+		rows, _ = db.Queryx(query)
+	}
+
 	files := []structs.File{}
 	
 	for rows.Next() {
@@ -422,6 +440,11 @@ func GetFiles(c echo.Context) (err error) {
 		err = rows.StructScan(&file)
 		if err != nil {
 			fmt.Println(err)
+		}
+		
+		if file.Hidden && includeHidden {
+			files = append(files, file)
+			continue
 		}
 		files = append(files, file)
 

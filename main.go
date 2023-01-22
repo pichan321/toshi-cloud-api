@@ -59,6 +59,7 @@ func main() {
 	router.POST("/multipart-upload", handlers.MultipartUploadFile)
 	router.POST("/login", handlers.Login)
 	router.POST("/register-account", handlers.RegisterAccount)
+	router.POST("/change-password", handlers.ChangePassword)
 	router.POST("/parse-and-upload", handlers.ParseAndUpload)
 
 	//FILE GROUP

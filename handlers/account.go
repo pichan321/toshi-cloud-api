@@ -73,15 +73,21 @@ func Login(c echo.Context) error {
 
 	var account structs.Account
 	err = c.Bind(&account)
-
 	if err != nil {
 		return ErrorHandler(c, 404, err)
 	}
 
 	row := db.QueryRowx(fmt.Sprintf(`select * from accounts where username = '%s' limit 1`, account.Username))
 
+	if row == nil {
+		return ErrorHandler(c, 404, err)
+	}
+
 	var dbAccount structs.Account
-	row.StructScan(&dbAccount)
+	err = row.StructScan(&dbAccount)
+	if err != nil {
+		return ErrorHandler(c, 404, err)
+	}
 
 	if (utils.HashPassword(account.Password) != dbAccount.Password || (strings.Compare(account.Username, dbAccount.Username) != 0)) {
 		return ErrorHandler(c, 404, err)
@@ -99,4 +105,32 @@ func Login(c echo.Context) error {
 
 	defer db.Close()
 	return c.JSON(http.StatusOK, dbAccount)
+}
+
+func ChangePassword(c echo.Context) error {
+	db, err := cloud.GetPostgres()
+	if err != nil {
+		return ErrorHandler(c, 500, err)
+	}
+	var changePassword structs.ChangePassword
+	c.Bind(&changePassword)
+
+
+	query := fmt.Sprintf(`select count(*) from accounts where token = '%s' and password = '%s'`, changePassword.Token, utils.HashPassword(changePassword.OldPassword))
+
+	row := db.QueryRowx(query)
+	var count int
+	row.Scan(&count)
+
+	if count != 1 {
+		return ErrorHandler(c, 400, errors.New("Cannot change password"))
+	}
+
+	query = fmt.Sprintf(`update accounts set password = '%s' where token = '%s'`, utils.HashPassword(changePassword.NewPassword), changePassword.Token)
+	_, err = db.Exec(query)
+	if err != nil {
+		return ErrorHandler(c, 500, errors.New("Cannot change password"))
+	}
+
+	return c.JSON(http.StatusOK, structs.Message{Message: "Password changed!", Code: 200})
 }

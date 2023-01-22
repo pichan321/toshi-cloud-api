@@ -24,10 +24,11 @@ try:
 
     #cursor.execute("create table files (uuid varchar(300) not null primary key, name varchar(500), size varchar(100), size_mb float, uploaded_date varchar(200), account_uuid varchar(300), bucket_uuid varchar(300), foreign key (account_uuid) references accounts(uuid), foreign key (bucket_uuid) references buckets(uuid))")
     # Fetch result
-    cursor.execute("select * from accounts")
+    cursor.execute("select count(*) from accounts where token = 2b79b781a452a41b8a13e0ebf5cfc4a6 and password = a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3")
     result = cursor.fetchall()
     print(result)
     connection.commit()
+
 
 
 

@@ -15,7 +15,7 @@ func CheckFileHandle(next echo.HandlerFunc) echo.HandlerFunc {
 		handle := c.Param("fileUuid")
 
 		if handle == "" {
-			return handlers.ErrorHandler(c, 400, errors.New("bad request"))
+			return handlers.ErrorHandler(c, 404, errors.New("file handle doesn't exist"))
 		}
 
 		db, err := cloud.GetPostgres()
