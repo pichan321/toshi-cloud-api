@@ -52,6 +52,7 @@ func main() {
 		return c.String(200, "TOSHI CLOUD")
 	})
 	router.GET("/get-files/:user", handlers.GetFiles)
+	router.GET("get-quota/:user", handlers.GetQuota)
 
 	//POST
 	router.POST("/upload", handlers.UploadFile)

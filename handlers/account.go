@@ -115,7 +115,6 @@ func ChangePassword(c echo.Context) error {
 	var changePassword structs.ChangePassword
 	c.Bind(&changePassword)
 
-
 	query := fmt.Sprintf(`select count(*) from accounts where token = '%s' and password = '%s'`, changePassword.Token, utils.HashPassword(changePassword.OldPassword))
 
 	row := db.QueryRowx(query)
@@ -133,4 +132,21 @@ func ChangePassword(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, structs.Message{Message: "Password changed!", Code: 200})
+}
+
+func GetQuota(c echo.Context) error {
+	db, err := cloud.GetPostgres()
+	if err != nil {
+		return ErrorHandler(c, 500, err)
+	}
+
+	user := c.Param("user")
+	
+	query := fmt.Sprintf(`SELECT sum(size_mb) FROM files where account_uuid = '%s'`, user)
+	var quota float64
+	row := db.QueryRowx(query)
+	row.Scan(&quota)
+
+	defer db.Close()
+	return c.JSON(http.StatusOK, fmt.Sprintf("%0.2f", quota / 1000.0))
 }

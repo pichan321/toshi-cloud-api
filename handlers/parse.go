@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -93,7 +94,7 @@ func ParseAndUpload(c echo.Context) error {
 
 	defer project.Close() 
 	defer db.Close()
-	return nil
+	return c.JSON(http.StatusOK, structs.Message{Message: "File is successfully parsed and uploaded.", Code: 200})
 }
 
 func ProcessParsedText(content string) string {
