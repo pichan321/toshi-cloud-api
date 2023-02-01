@@ -150,3 +150,9 @@ func GetQuota(c echo.Context) error {
 	defer db.Close()
 	return c.JSON(http.StatusOK, fmt.Sprintf("%0.2f", quota / 1000.0))
 }
+
+func UploadProfile(c echo.Context) error {
+	
+
+	return nil
+}
