@@ -403,8 +403,6 @@ func DownloadFileStream(c echo.Context) (err error) {
 func GetFiles(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 	if err != nil {
-		log.Printf("%v", err)
-		log.Println("DB ERROR")
 		return ErrorHandler(c, 500, err)
 	}
 
@@ -448,6 +446,19 @@ func GetFiles(c echo.Context) (err error) {
 		}
 		files = append(files, file)
 
+	}
+
+	query = fmt.Sprintf(`select files.uuid, files.name, files.size, files.size_mb, files.uploaded_date, files.account_uuid, files.bucket_uuid, files.status, files.uploadid, files.hidden from files join sharing on files.uuid = sharing.handle where sharing.file_recipient = '%s'`, user)
+	fmt.Println(query)
+	rows, _ = db.Queryx(query)
+	for rows.Next() {
+		file := &structs.File{}
+		err = rows.StructScan(file)
+		file.SharedFile = true
+		if err != nil {
+			fmt.Println(err)
+		}
+		files = append(files, *file)
 	}
 
 	sort.Slice(files, func(i, j int) bool {

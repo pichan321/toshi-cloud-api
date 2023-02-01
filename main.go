@@ -52,7 +52,8 @@ func main() {
 		return c.String(200, "TOSHI CLOUD")
 	})
 	router.GET("/get-files/:user", handlers.GetFiles)
-	router.GET("get-quota/:user", handlers.GetQuota)
+	router.GET("/get-quota/:user", handlers.GetQuota)
+	router.GET("/get-users/:user/:handle/:username", handlers.GetUsersToShare)
 
 	//POST
 	router.POST("/upload", handlers.UploadFile)
@@ -62,6 +63,13 @@ func main() {
 	router.POST("/register-account", handlers.RegisterAccount)
 	router.POST("/change-password", handlers.ChangePassword)
 	router.POST("/parse-and-upload", handlers.ParseAndUpload)
+	router.POST("/upload-profile", handlers.UploadProfile)
+
+	router.POST("/share-file", handlers.ShareFileShareAccess)
+	router.POST("/share-file/revoke", handlers.ShareFileRevokeAccess)
+
+	//DELETE
+	router.DELETE("/delete-shared-file", handlers.DeleteSharedFile)
 
 	//FILE GROUP
 	file := router.Group("/file", middlewares.CheckFileHandle)

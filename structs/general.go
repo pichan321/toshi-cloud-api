@@ -13,6 +13,7 @@ type File struct {
 	Status       string  `json:"status"`
 	UploadID     string  `json:"uploadId"`
 	Hidden       bool    `json:"hidden" db:"hidden"`
+	SharedFile bool `json:"shared_file"`
 }
 
 type Bucket struct {
