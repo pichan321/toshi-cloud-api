@@ -49,7 +49,7 @@ func RegisterAccount(c echo.Context) error {
 	id := uuid.New()
 	hashedPassword := utils.HashPassword(account.Password)
 
-	_, err = db.Exec(fmt.Sprintf(`insert into accounts (uuid, username, password, email) values ('%s', '%s','%s','%s')`,  id.String(), strings.ToLower(account.Username), string(hashedPassword), account.Email))
+	_, err = db.Exec(fmt.Sprintf(`insert into accounts (uuid, username, password, email, token) values ('%s', '%s','%s','%s')`,  id.String(), strings.ToLower(account.Username), string(hashedPassword), account.Email, ""))
 	if err != nil {
 		fmt.Printf("%v", err)
 	}
