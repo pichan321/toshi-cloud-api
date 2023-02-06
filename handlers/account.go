@@ -49,7 +49,11 @@ func RegisterAccount(c echo.Context) error {
 	id := uuid.New()
 	hashedPassword := utils.HashPassword(account.Password)
 
-	_, err = db.Exec(fmt.Sprintf(`insert into accounts (uuid, username, password, email, token) values ('%s', '%s','%s','%s')`,  id.String(), strings.ToLower(account.Username), string(hashedPassword), account.Email, ""))
+	_, err = db.Exec(fmt.Sprintf(`insert into accounts (uuid, username, password, email, token) values ('%s', '%s','%s','%s', '%s')`,  id.String(), strings.ToLower(account.Username), string(hashedPassword), account.Email, ""))
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
+	_, err = db.Exec(fmt.Sprintf(`insert into profile (uuid, link) values ('%s', '%s')`,  id.String(), ""))
 	if err != nil {
 		fmt.Printf("%v", err)
 	}
@@ -186,7 +190,7 @@ func UploadProfile(c echo.Context) error {
 	if err != nil {
 		return ErrorHandler(c, 500, errors.New("could not ensure bucket"))
 	}
-	storjFileName := user + "_" + "profile" + "_" + fileName
+	storjFileName := strings.ReplaceAll(user, "-", "_") + "_" + "profile" + "_" + fileName
 	upload, err := project.UploadObject(ctx, bucket.Name, storjFileName, nil)
 	if err != nil {
 		return fmt.Errorf("could not initiate upload: %v", err)
@@ -221,7 +225,7 @@ func UploadProfile(c echo.Context) error {
 	defer db.Close()
 	defer project.Close()
 	defer src.Close()
-	return c.JSON(http.StatusOK, structs.Message{Message: "Uploaded successfully!", Code: 200})
+	return c.JSON(http.StatusOK, structs.Message{Message: bucket.ShareLink + "/" + storjFileName, Code: 200})
 }
 
 func GetProfile(c echo.Context) error {
