@@ -55,6 +55,7 @@ func main() {
 	router.GET("/get-quota/:user", handlers.GetQuota)
 	router.GET("/get-users/:user/:handle/:username", handlers.GetUsersToShare)
 	router.GET("/get-profile/:user", handlers.GetProfile)
+	router.GET("/login-spotify", handlers.LoginSpotify)
 
 	//POST
 	router.POST("/upload", handlers.UploadFile)
