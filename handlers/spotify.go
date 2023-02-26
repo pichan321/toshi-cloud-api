@@ -18,7 +18,7 @@ func LoginSpotify(c echo.Context) error {
 
 	// c.Redirect(http.StatusFound, fmt.Sprintf(`https://accounts.spotify.com/authorize?response_type=token&client_id=%s&client_secret=%s&redirect_uri=%s&scope=user-read-currently-playing&state=aaaaaaaaa&show_dialog=false`,  SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, REDIRECT_URL))
 	// fmt.Println(fmt.Sprintf(`https://accounts.spotify.com/authorize?response_type=code&client_id=%s&client_secret=%s&redirect_uri=%s&scope=user-read-currently-playing&state=aaaaaaaaa&show_dialog=false`,  SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, REDIRECT_URL))
-	request, _ := http.NewRequest("GET", fmt.Sprintf(`https://accounts.spotify.com/authorize?response_type=token&client_id=%s&client_secret=%s&redirect_uri=%s&scope=user-read-currently-playing&state=aaaaaaaaa&show_dialog=false`,  SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, REDIRECT_URL), nil)
+	request, _ := http.NewRequest("GET", fmt.Sprintf(`https://accounts.spotify.com/authorize?response_type=token&client_id=%s&client_secret=%s&redirect_uri=%s&scope=user-read-currently-playing&show_dialog=false`,  SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, REDIRECT_URL), nil)
     client := &http.Client{}
     resp, err := client.Do(request)
     if err != nil {
