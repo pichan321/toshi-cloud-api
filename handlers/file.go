@@ -507,6 +507,48 @@ func DeleteFile(c echo.Context) (err error) {
 	return c.JSON(http.StatusOK, structs.Message{Message: "File deleted successfully!", Code: 200})
 }
 
+func DeleteMultipleHelper(fileUuids []string) {
+		db, _ := cloud.GetPostgres()
+
+		for _, v := range fileUuids {
+			fileUuid := v
+	
+			query := fmt.Sprintf(`select access_token, buckets.name as bucket_name, buckets.uuid as bucket_uuid, files.name as file_name, files.size_mb as file_size from (select * from files where files.uuid = '%s') as files join buckets on files.bucket_uuid = buckets.uuid`, fileUuid) 
+			row := db.QueryRowx(query)
+			columnNames, _ := row.Columns()
+			data := utils.ScanToMap(columnNames, row)
+		
+			ctx := context.Background()
+			
+			project, _ := cloud.GetStorj(data["access_token"], ctx)
+			project.DeleteObject(ctx, data["bucket_name"], utils.FixEscape(data["file_name"]))
+			
+		
+			db.Exec(fmt.Sprintf(`delete from files where uuid = '%s'`, fileUuid))
+		
+
+			fileSize, _ := strconv.ParseFloat(data["file_size"], 32)
+			utils.UpdateBucketSize(data["bucket_uuid"], -(math.Abs(fileSize)))
+			project.Close()
+		}
+		
+		defer db.Close()
+		
+}
+
+func DeleteMultipleFiles(c echo.Context) (err error) {
+	var fileUuids []string
+
+	err = c.Bind(&fileUuids)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Bad Request", Code: 400})
+	}
+
+	DeleteMultipleHelper(fileUuids)
+
+	return c.JSON(http.StatusOK, fileUuids)
+}
+
 func StreamFile(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 

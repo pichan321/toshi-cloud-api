@@ -72,6 +72,7 @@ func main() {
 
 	//DELETE
 	router.DELETE("/delete-shared-file", handlers.DeleteSharedFile)
+	router.DELETE("/delete-multiple", handlers.DeleteMultipleFiles)
 
 	//FILE GROUP
 	file := router.Group("/file", middlewares.CheckFileHandle)
