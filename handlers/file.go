@@ -31,7 +31,7 @@ func UploadFile(c echo.Context) (err error) {
 		return ErrorHandler(c, 500, err)
 	}
 	
-	user := c.FormValue("userUuid")
+	user := c.Get("userUuid").(string)
 	file, err := c.FormFile("file")
 	name := c.FormValue("name")
 	size := c.FormValue("size")
@@ -43,7 +43,7 @@ func UploadFile(c echo.Context) (err error) {
 	if bucket.Uuid == "" || bucket.AccessToken == "" {
 		return ErrorHandler(c, 500, err)
 	}
-	
+	fmt.Println("Got here 1")
 	 fileInfo := structs.File{
 	 	Uuid: utils.GenerateUuid(),
 	 	Name: utils.FixEscape(name),
@@ -58,7 +58,7 @@ func UploadFile(c echo.Context) (err error) {
 	if err != nil {
 		return ErrorHandler(c, 500, err)
 	}
-
+	fmt.Println("Got here 2")
 	ctx := context.Background()
 	project, err := cloud.GetStorj(bucket.AccessToken, ctx)
 	if err != nil {
@@ -70,6 +70,7 @@ func UploadFile(c echo.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("could not ensure bucket: %v", err)
 	}
+	fmt.Println("Got here 3")
 	storjFilename := utils.StorjFilename(fileInfo.Uuid, fileInfo.Name, "___")
 	upload, err := project.UploadObject(ctx, bucket.Name, storjFilename, nil)
 	if err != nil {
@@ -81,6 +82,7 @@ func UploadFile(c echo.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("could not upload data: %v", err)
 	}
+	fmt.Println("Got here 4")
 	// Copy the data to the upload.
 	buf := bytes.NewBuffer(data)
 	_, err = io.Copy(upload, buf)
@@ -120,7 +122,7 @@ func PrepareMultipartUpload(c echo.Context) (err error) {
 		return ErrorHandler(c, 500, err)
 	}
 
-	user := c.FormValue("userUuid")
+	user := c.Get("userUuid").(string)
 	name := c.FormValue("name")
 	size := c.FormValue("size")
 	sizeMb := c.FormValue("sizeMb")
@@ -187,6 +189,11 @@ func MultipartUploadFile(c echo.Context) (err error) {
 	fmt.Println(actualSize)
 	// timestamp := time.Now().Format("2006-01-02 15:04:05 PM")
 	bucket := utils.GetBucketUuid(actualSize)
+
+	fmt.Println("UploadId")
+	fmt.Println(uploadId)
+	fmt.Println("Size mb")
+	fmt.Println(sizeMb)
 	fmt.Printf("%s", "BUCKET INFO")
 	fmt.Printf("%v", bucket.Name)
 	fmt.Printf("%v", bucket.AccessToken)
@@ -228,12 +235,14 @@ func MultipartUploadFile(c echo.Context) (err error) {
 	_, err = project.EnsureBucket(ctx, bucket.Name)// bucket.Name
 	if err != nil {
 		fmt.Printf("could not initiate upload: %v", err)
+		fmt.Println("Ensure bucket")
 		return ErrorHandler(c, 500, err)
 	}
 
 	upload, err := project.UploadPart(ctx, bucket.Name, filename, uploadId, uint32(currentPart)) //uint32(fileInfo.Part)
 	if err != nil {
 		fmt.Printf("could not initiate upload: %v", err)
+		fmt.Println("Upload part")
 		return ErrorHandler(c, 500, err)
 	}
 
@@ -414,7 +423,7 @@ func GetFiles(c echo.Context) (err error) {
 		includeHidden = true
 	}
 
-	user := c.Param("user")
+	user := c.Get("userUuid")
 
 	if user == "" {
 		return ErrorHandler(c, 404, nil)
@@ -449,7 +458,6 @@ func GetFiles(c echo.Context) (err error) {
 	}
 
 	query = fmt.Sprintf(`select files.uuid, files.name, files.size, files.size_mb, files.uploaded_date, files.account_uuid, files.bucket_uuid, files.status, files.uploadid, files.hidden from files join sharing on files.uuid = sharing.handle where sharing.file_recipient = '%s'`, user)
-	fmt.Println(query)
 	rows, _ = db.Queryx(query)
 	for rows.Next() {
 		file := &structs.File{}
@@ -558,7 +566,6 @@ func StreamFile(c echo.Context) (err error) {
 
 	// bucketUuid := c.Param("bucketUuid")
 	fileUuid := c.Param("fileUuid")
-	fmt.Println(fileUuid)
 	query := fmt.Sprintf(`select access_token, buckets.name as bucket_name, files.name as file_name, buckets.shareLink as share_link  from (select * from files where files.uuid = '%s') as files join buckets on files.bucket_uuid = buckets.uuid`, fileUuid) 
 
 	row := db.QueryRowx(query)
@@ -601,7 +608,6 @@ func GetFileContent(c echo.Context) (err error) {
 	receivedContents, err := io.ReadAll(download)
 
 	fileType := strings.Split(data["file_name"], ".")[1]
-
 	if fileType == "txt" {
 		return c.Blob(http.StatusOK, "text/plain", receivedContents)
 	}

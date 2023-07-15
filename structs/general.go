@@ -1,7 +1,9 @@
 package structs
 
+import "context"
+
 type File struct {
-	Uuid         string  `json:"uuid" db:"uuid"`
+	Uuid         string  `json:"uuid" db:"uuid" gorm:"primaryKey"`
 	Name         string  `json:"name" db:"name"`
 	Size         string  `json:"size" db:"size"`
 	SizeMb       float64 `json:"sizeMb" db:"size_mb"`
@@ -13,7 +15,7 @@ type File struct {
 	Status       string  `json:"status"`
 	UploadID     string  `json:"uploadId"`
 	Hidden       bool    `json:"hidden" db:"hidden"`
-	SharedFile bool `json:"shared_file"`
+	SharedFile   bool    `json:"shared_file"`
 }
 
 type Bucket struct {
@@ -26,4 +28,17 @@ type Bucket struct {
 
 type FileContent struct {
 	Content string `json:"content"`
+}
+
+type CustomClaims struct {
+	Email         string `json:"email"`
+	Picture       string `json:"picture"`
+	Nickname      string `json:"nickname"`
+	Name          string `json:"name"`
+	EmailVerified bool   `json:"email_verified"`
+	Sub           string `json:"sub"`
+}
+
+func (c CustomClaims) Validate(ctx context.Context) error {
+	return nil
 }

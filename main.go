@@ -3,6 +3,7 @@ package main
 import (
 	"file-api/handlers"
 	"file-api/middlewares"
+	"file-api/cloud"
 	"fmt"
 	"net/http"
 	"time"
@@ -51,21 +52,27 @@ func main() {
 	router.GET("/", func (c echo.Context) error {
 		return c.String(200, "TOSHI CLOUD")
 	})
-	router.GET("/get-files/:user", handlers.GetFiles)
-	router.GET("/get-quota/:user", handlers.GetQuota)
+
+	router.Use(middlewares.ValidateToken)
+
+
+	router.GET("/profile", handlers.GetUserMetadata) //ok
+	router.GET("/get-files", handlers.GetFiles) //ok
+	router.GET("/get-quota", handlers.GetQuota) //ok
 	router.GET("/get-users/:user/:handle/:username", handlers.GetUsersToShare)
-	router.GET("/get-profile/:user", handlers.GetProfile)
+	// router.GET("/get-profile/:user", handlers.GetProfile) 
 	router.GET("/login-spotify", handlers.LoginSpotify)
+	router.GET("/database/migrate", cloud.Migrate)
 
 	//POST
-	router.POST("/upload", handlers.UploadFile)
+	router.POST("/upload", handlers.UploadFile) 
 	router.POST("/prepare-multipart-upload", handlers.PrepareMultipartUpload)
 	router.POST("/multipart-upload", handlers.MultipartUploadFile)
-	router.POST("/login", handlers.Login)
-	router.POST("/register-account", handlers.RegisterAccount)
-	router.POST("/change-password", handlers.ChangePassword)
-	router.POST("/parse-and-upload", handlers.ParseAndUpload)
-	router.POST("/upload-profile", handlers.UploadProfile)
+	// router.POST("/login", handlers.Login)
+	// router.POST("/register-account", handlers.RegisterAccount)
+	// router.POST("/change-password", handlers.ChangePassword)
+	router.POST("/parse-and-upload", handlers.ParseAndUpload) //ok
+	router.POST("/upload-profile", handlers.UploadProfile) //ok
 
 	router.POST("/share-file", handlers.ShareFileShareAccess)
 	router.POST("/share-file/revoke", handlers.ShareFileRevokeAccess)

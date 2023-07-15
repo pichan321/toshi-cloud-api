@@ -29,7 +29,7 @@ func ParseAndUpload(c echo.Context) error {
 	if err != nil {
 		return ErrorHandler(c, 404, err)
 	}
-
+	user := c.Get("userUuid").(string)
 	timestamp := time.Now().Format("2006-01-02 15:04:05 PM")
 
 	if fileToParse.Filename == "" {
@@ -44,7 +44,7 @@ func ParseAndUpload(c echo.Context) error {
 		Size: strconv.Itoa(fileSize) + " MB",
 		SizeMb: float64(fileSize),
 		UploadedDate: timestamp,
-		UserUuid: fileToParse.User,
+		UserUuid: user,
 		BucketUuid: bucket.Uuid,
 	}
 

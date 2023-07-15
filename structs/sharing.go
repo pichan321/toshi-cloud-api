@@ -1,6 +1,7 @@
 package structs
 
 type ShareFile struct{
+	ID string `gorm:"primaryKey"`
 	Handle string `json:"handle"`
 	Owner string `json:"owner"`
 	Recipient string `json:"recipient"`

@@ -3,16 +3,16 @@ package cloud
 import (
 	"context"
 	"errors"
+	"file-api/structs"
 	"fmt"
-	"time"
+	"net/http"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/labstack/echo/v4"
 	_ "github.com/lib/pq"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 	"storj.io/uplink"
-
-	_ "github.com/go-sql-driver/mysql"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func GetPostgres() (*sqlx.DB, error) {
@@ -28,31 +28,21 @@ func GetPostgres() (*sqlx.DB, error) {
 	return db, nil
 }
 
-func GetMongo() (*mongo.Client, error) {
-	serverAPIOptions := options.ServerAPI(options.ServerAPIVersion1)
-	clientOptions := options.Client().
-	    ApplyURI("mongodb+srv://vattana:1234567890@cluster.sk4xlbi.mongodb.net/?retryWrites=true&w=majority").
-	    SetServerAPIOptions(serverAPIOptions)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	client, err := mongo.Connect(ctx, clientOptions)
+// func GetMongo() (*mongo.Client, error) {
+// 	serverAPIOptions := options.ServerAPI(options.ServerAPIVersion1)
+// 	clientOptions := options.Client().
+// 	    ApplyURI("mongodb+srv://vattana:1234567890@cluster.sk4xlbi.mongodb.net/?retryWrites=true&w=majority").
+// 	    SetServerAPIOptions(serverAPIOptions)
+// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+// 	defer cancel()
+// 	client, err := mongo.Connect(ctx, clientOptions)
 
-	if err != nil {
-	    return nil, errors.New("could not connect to MongoDB")
-	}
+// 	if err != nil {
+// 	    return nil, errors.New("could not connect to MongoDB")
+// 	}
 	
-	return client, nil
-}
-
-func GetSQL() (*sqlx.DB, error) {
-	db, err := sqlx.Open("mysql", "1Qstk6LRfj:It0AEZPaCt@tcp(remotemysql.com)/1Qstk6LRfj")
-
-    if err != nil {
-        return nil, errors.New("could not connect to MySQL")
-    }
-
-	return db, nil
-}
+// 	return client, nil
+// }
 
 func GetStorj(accessToken string, ctx context.Context) (*uplink.Project, error) {
 	access, err := uplink.ParseAccess(accessToken)
@@ -66,4 +56,28 @@ func GetStorj(accessToken string, ctx context.Context) (*uplink.Project, error) 
 	}
 
 	return project, nil
-}	
+}
+
+func GetGorm() (*gorm.DB, error) {
+	dsn := fmt.Sprintf("host=%s port=%d user=%s "+
+    "password=%s dbname=%s", // sslmode=verify-full
+    "pichan-2902.g8z.cockroachlabs.cloud", 26257, "pichan", "OGdtBNEQGFcGS818wuLbxA", "toshi-cloud")
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return db, err
+	}
+	return db, nil
+}
+
+func Migrate(c echo.Context) error {
+	dsn := fmt.Sprintf("host=%s port=%d user=%s "+
+    "password=%s dbname=%s", // sslmode=verify-full
+    "pichan-2902.g8z.cockroachlabs.cloud", 26257, "pichan", "OGdtBNEQGFcGS818wuLbxA", "toshi-cloud")
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return c.String(http.StatusInternalServerError, "")
+	}
+
+	db.AutoMigrate(&structs.Account{}, &structs.Bucket{}, &structs.File{}, &structs.ShareFile{})
+	return c.JSON(http.StatusOK, structs.Message{Code: 200, Message: "Done"})
+}

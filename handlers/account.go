@@ -13,134 +13,142 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
-func RegisterAccount(c echo.Context) error {
-	db, err := cloud.GetPostgres()
-	if err != nil {
-		return ErrorHandler(c, 500, err)
+func GetUserMetadata(c echo.Context) error {
+	userClaims, ok := c.Get("user").(structs.CustomClaims)
+	if !ok {
+		return c.JSON(http.StatusInternalServerError, nil)
 	}
-
-	var account structs.Account
-	err = c.Bind(&account)
-	if err != nil {
-		return ErrorHandler(c, 400, err)
-	}
-
-	err = utils.ValidateEmail(account.Email) 
-	if err != nil {
-		return ErrorHandler(c, 400, errors.New("invalid email address"))
-	}
-
-	if (account.Username == "" || account.Email == "" || account.Password == "") {
-		return ErrorHandler(c, 400, errors.New("bad request"))
-	}
-
-	var checkAccount structs.Account
-	accounts := db.QueryRowx(fmt.Sprintf(`select * from accounts where username = '%s' or email = '%s'`, account.Username, account.Email))
-	accounts.StructScan(&checkAccount)
-
-	if (account.Username == checkAccount.Username) || (account.Email == checkAccount.Email) {
-		return ErrorHandler(c, 400, errors.New("Cannot register account!"))
-	}
-
-	id := uuid.New()
-	hashedPassword := utils.HashPassword(account.Password)
-
-	_, err = db.Exec(fmt.Sprintf(`insert into accounts (uuid, username, password, email, token) values ('%s', '%s','%s','%s', '%s')`,  id.String(), strings.ToLower(account.Username), string(hashedPassword), account.Email, ""))
-	if err != nil {
-		fmt.Printf("%v", err)
-	}
-	_, err = db.Exec(fmt.Sprintf(`insert into profile (uuid, link) values ('%s', '%s')`,  id.String(), ""))
-	if err != nil {
-		fmt.Printf("%v", err)
-	}
-	defer db.Close()
-	return c.JSON(http.StatusOK, structs.Message{Code: 200})
+	
+	return c.JSON(http.StatusOK, userClaims)
 }
 
-func Login(c echo.Context) error {
-	db, err := cloud.GetPostgres()
-	if err != nil {
-		return ErrorHandler(c, 500, err)
-	}
+// func RegisterAccount(c echo.Context) error {
+// 	db, err := cloud.GetPostgres()
+// 	if err != nil {
+// 		return ErrorHandler(c, 500, err)
+// 	}
 
-	token := c.QueryParam("token")
-	if (token != "") {
-		row := db.QueryRowx(fmt.Sprintf(`select * from accounts where token = '%s'`, token))
-		var account structs.Account
-		row.StructScan(&account)
-		if (account.Token == token) {
-			var temp = &account
-			temp.Password = ""
-			return c.JSON(http.StatusOK, account)
-		}
-	}
+// 	var account structs.Account
+// 	err = c.Bind(&account)
+// 	if err != nil {
+// 		return ErrorHandler(c, 400, err)
+// 	}
 
-	var account structs.Account
-	err = c.Bind(&account)
-	if err != nil {
-		return ErrorHandler(c, 404, err)
-	}
+// 	err = utils.ValidateEmail(account.Email) 
+// 	if err != nil {
+// 		return ErrorHandler(c, 400, errors.New("invalid email address"))
+// 	}
 
-	row := db.QueryRowx(fmt.Sprintf(`select * from accounts where username = '%s' limit 1`, account.Username))
+// 	if (account.Username == "" || account.Email == "" || account.Password == "") {
+// 		return ErrorHandler(c, 400, errors.New("bad request"))
+// 	}
 
-	if row == nil {
-		return ErrorHandler(c, 404, err)
-	}
+// 	var checkAccount structs.Account
+// 	accounts := db.QueryRowx(fmt.Sprintf(`select * from accounts where username = '%s' or email = '%s'`, account.Username, account.Email))
+// 	accounts.StructScan(&checkAccount)
 
-	var dbAccount structs.Account
-	err = row.StructScan(&dbAccount)
-	if err != nil {
-		return ErrorHandler(c, 404, err)
-	}
+// 	if (account.Username == checkAccount.Username) || (account.Email == checkAccount.Email) {
+// 		return ErrorHandler(c, 400, errors.New("Cannot register account!"))
+// 	}
 
-	if (utils.HashPassword(account.Password) != dbAccount.Password || (strings.Compare(account.Username, dbAccount.Username) != 0)) {
-		return ErrorHandler(c, 404, err)
-	}
+// 	id := uuid.New()
+// 	hashedPassword := utils.HashPassword(account.Password)
 
-	var tempPointer = &dbAccount
-	tempPointer.Password = ""
-	tempPointer.Token = utils.GenerateToken()
-	//query := fmt.Sprintf(`update accounts set token = '%s' where uuid = '%s'`, dbAccount.Token, dbAccount.Username)
-	query := fmt.Sprintf("update accounts set token = '%s' where uuid = '%s'", dbAccount.Token, dbAccount.Uuid)
-	_, err = db.Exec(query)
-	if err != nil {
-		fmt.Printf("%v", err)
-	}
+// 	_, err = db.Exec(fmt.Sprintf(`insert into accounts (uuid, username, password, email, token) values ('%s', '%s','%s','%s', '%s')`,  id.String(), strings.ToLower(account.Username), string(hashedPassword), account.Email, ""))
+// 	if err != nil {
+// 		fmt.Printf("%v", err)
+// 	}
+// 	_, err = db.Exec(fmt.Sprintf(`insert into profile (uuid, link) values ('%s', '%s')`,  id.String(), ""))
+// 	if err != nil {
+// 		fmt.Printf("%v", err)
+// 	}
+// 	defer db.Close()
+// 	return c.JSON(http.StatusOK, structs.Message{Code: 200})
+// }
 
-	defer db.Close()
-	return c.JSON(http.StatusOK, dbAccount)
-}
+// func Login(c echo.Context) error {
+// 	db, err := cloud.GetPostgres()
+// 	if err != nil {
+// 		return ErrorHandler(c, 500, err)
+// 	}
 
-func ChangePassword(c echo.Context) error {
-	db, err := cloud.GetPostgres()
-	if err != nil {
-		return ErrorHandler(c, 500, err)
-	}
-	var changePassword structs.ChangePassword
-	c.Bind(&changePassword)
+// 	token := c.QueryParam("token")
+// 	if (token != "") {
+// 		row := db.QueryRowx(fmt.Sprintf(`select * from accounts where token = '%s'`, token))
+// 		var account structs.Account
+// 		row.StructScan(&account)
+// 		if (account.Token == token) {
+// 			var temp = &account
+// 			temp.Password = ""
+// 			return c.JSON(http.StatusOK, account)
+// 		}
+// 	}
 
-	query := fmt.Sprintf(`select count(*) from accounts where token = '%s' and password = '%s'`, changePassword.Token, utils.HashPassword(changePassword.OldPassword))
+// 	var account structs.Account
+// 	err = c.Bind(&account)
+// 	if err != nil {
+// 		return ErrorHandler(c, 404, err)
+// 	}
 
-	row := db.QueryRowx(query)
-	var count int
-	row.Scan(&count)
+// 	row := db.QueryRowx(fmt.Sprintf(`select * from accounts where username = '%s' limit 1`, account.Username))
 
-	if count != 1 {
-		return ErrorHandler(c, 400, errors.New("Cannot change password"))
-	}
+// 	if row == nil {
+// 		return ErrorHandler(c, 404, err)
+// 	}
 
-	query = fmt.Sprintf(`update accounts set password = '%s' where token = '%s'`, utils.HashPassword(changePassword.NewPassword), changePassword.Token)
-	_, err = db.Exec(query)
-	if err != nil {
-		return ErrorHandler(c, 500, errors.New("Cannot change password"))
-	}
+// 	var dbAccount structs.Account
+// 	err = row.StructScan(&dbAccount)
+// 	if err != nil {
+// 		return ErrorHandler(c, 404, err)
+// 	}
 
-	return c.JSON(http.StatusOK, structs.Message{Message: "Password changed!", Code: 200})
-}
+// 	if (utils.HashPassword(account.Password) != dbAccount.Password || (strings.Compare(account.Username, dbAccount.Username) != 0)) {
+// 		return ErrorHandler(c, 404, err)
+// 	}
+
+// 	var tempPointer = &dbAccount
+// 	tempPointer.Password = ""
+// 	tempPointer.Token = utils.GenerateToken()
+// 	//query := fmt.Sprintf(`update accounts set token = '%s' where uuid = '%s'`, dbAccount.Token, dbAccount.Username)
+// 	query := fmt.Sprintf("update accounts set token = '%s' where uuid = '%s'", dbAccount.Token, dbAccount.Uuid)
+// 	_, err = db.Exec(query)
+// 	if err != nil {
+// 		fmt.Printf("%v", err)
+// 	}
+
+// 	defer db.Close()
+// 	return c.JSON(http.StatusOK, dbAccount)
+// }
+
+// func ChangePassword(c echo.Context) error {
+// 	db, err := cloud.GetPostgres()
+// 	if err != nil {
+// 		return ErrorHandler(c, 500, err)
+// 	}
+// 	var changePassword structs.ChangePassword
+// 	c.Bind(&changePassword)
+
+// 	query := fmt.Sprintf(`select count(*) from accounts where token = '%s' and password = '%s'`, changePassword.Token, utils.HashPassword(changePassword.OldPassword))
+
+// 	row := db.QueryRowx(query)
+// 	var count int
+// 	row.Scan(&count)
+
+// 	if count != 1 {
+// 		return ErrorHandler(c, 400, errors.New("Cannot change password"))
+// 	}
+
+// 	query = fmt.Sprintf(`update accounts set password = '%s' where token = '%s'`, utils.HashPassword(changePassword.NewPassword), changePassword.Token)
+// 	_, err = db.Exec(query)
+// 	if err != nil {
+// 		return ErrorHandler(c, 500, errors.New("Cannot change password"))
+// 	}
+
+// 	return c.JSON(http.StatusOK, structs.Message{Message: "Password changed!", Code: 200})
+// }
 
 func GetQuota(c echo.Context) error {
 	db, err := cloud.GetPostgres()
@@ -148,13 +156,19 @@ func GetQuota(c echo.Context) error {
 		return ErrorHandler(c, 500, err)
 	}
 
-	user := c.Param("user")
+	userUuid := c.Get("userUuid")
+	if userUuid == "" {
+		return c.JSON(http.StatusBadRequest, "")
+	}
 	
-	query := fmt.Sprintf(`SELECT sum(size_mb) FROM files where account_uuid = '%s'`, user)
+	fmt.Println("USER UUID")
+	fmt.Println(userUuid)
+	query := fmt.Sprintf(`SELECT sum(size_mb) FROM files where account_uuid = '%s'`, userUuid)
 	var quota float64
 	row := db.QueryRowx(query)
 	row.Scan(&quota)
-
+	fmt.Println("Quota")
+	fmt.Println(quota)
 	defer db.Close()
 	return c.JSON(http.StatusOK, fmt.Sprintf("%0.2f", quota / 1000.0))
 }
