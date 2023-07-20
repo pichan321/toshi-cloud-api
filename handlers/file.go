@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
@@ -23,7 +22,11 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-const MAX_UPLOAD_SIZE = 50 * 1024 * 1024
+const (
+	MAX_UPLOAD_SIZE = 50 * 1024 * 1024
+	MAX_READ_SIZE = 10 * 1024 * 1024
+)
+
 
 func UploadFile(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
@@ -42,7 +45,7 @@ func UploadFile(c echo.Context) (err error) {
 	if contentLength > MAX_UPLOAD_SIZE {
 		return c.JSON(http.StatusBadRequest, structs.Message{Message: "File size should be above 50 MB", Code: 400})
 	}
-	
+
 	file, err := c.FormFile("file")
 	name := c.FormValue("name")
 	size := c.FormValue("size")
@@ -87,10 +90,25 @@ func UploadFile(c echo.Context) (err error) {
 	storjFilename := utils.StorjFilename(fileInfo.Uuid, fileInfo.Name, "___")
 	upload, err := project.UploadObject(ctx, bucket.Name, storjFilename, nil)
 	if err != nil {
-		return fmt.Errorf("could not initiate upload: %v", err)
+		return ErrorHandler(c, 500, err)
 	}
-
-	data, err := ioutil.ReadAll(src)
+	
+	buf := make([]byte, MAX_READ_SIZE)
+	for  {
+		n, err := src.Read(buf)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Error reading bytes from file", Code: 500})
+		}
+		bufferReader := bytes.NewBuffer(buf[:n])
+		_, err = io.Copy(upload, bufferReader)
+		if err != nil {
+			_ = upload.Abort()
+			return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Error copying bytes to cloud", Code: 500})
+		}
+	}
 	
 	_, err = db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '1')`, fileInfo.Uuid, storjFilename, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid))
 	
@@ -98,14 +116,6 @@ func UploadFile(c echo.Context) (err error) {
 		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal server error", Code: 500})
 	}
 
-	buf := bytes.NewBuffer(data)
-	_, err = io.Copy(upload, buf)
-	if err != nil {
-		_ = upload.Abort()
-		return fmt.Errorf("could not upload data: %v", err)
-	}
-
-	// Commit the uploaded object.
 	err = upload.Commit()
 	if err != nil {
 		return fmt.Errorf("could not commit uploaded object: %v", err)
@@ -142,6 +152,14 @@ func PrepareMultipartUpload(c echo.Context) (err error) {
 	bucket := utils.GetBucketUuid(actualSize)
 	timestamp := time.Now().Format("2006-01-02 15:04:05 PM")
 
+	contentLengthString := c.Request().Header["Content-Length"][0]
+	contentLength, err := strconv.Atoi(contentLengthString)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Invalid file", Code: 400})
+	}
+	if contentLength > MAX_UPLOAD_SIZE {
+		return c.JSON(http.StatusBadRequest, structs.Message{Message: "File size should be above 50 MB", Code: 400})
+	}
 
 	fileInfo := structs.File{
 		Uuid: utils.GenerateUuid(),
@@ -258,16 +276,33 @@ func MultipartUploadFile(c echo.Context) (err error) {
 	}
 
 
-	data, err := ioutil.ReadAll(src)
-	if err != nil {
-		fmt.Printf("could not initiate upload: %v", err)
-		return ErrorHandler(c, 500, err)
+	buf := make([]byte, MAX_READ_SIZE)
+	for  {
+		n, err := src.Read(buf)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Error reading bytes from file", Code: 500})
+		}
+		bufferReader := bytes.NewBuffer(buf[:n])
+		_, err = io.Copy(upload, bufferReader)
+		if err != nil {
+			_ = upload.Abort()
+			return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Error copying bytes to cloud", Code: 500})
+		}
 	}
-	// Copy the data to the upload.
 
-	buf := bytes.NewBuffer(data)
+	// data, err := ioutil.ReadAll(src)
+	// if err != nil {
+	// 	fmt.Printf("could not initiate upload: %v", err)
+	// 	return ErrorHandler(c, 500, err)
+	// }
+	// // Copy the data to the upload.
 
-	_, err = io.Copy(upload, buf)
+	// buf := bytes.NewBuffer(data)
+
+	// _, err = io.Copy(upload, buf)
 
 	if err != nil {
 		_ = upload.Abort()

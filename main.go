@@ -59,6 +59,7 @@ func main() {
 	// router.GET("/get-profile/:user", handlers.GetProfile) 
 	router.GET("/login-spotify", handlers.LoginSpotify)
 	router.GET("/database/migrate", cloud.Migrate)
+	router.GET("/ws", handlers.Client)
 
 	//POST
 	router.POST("/upload", handlers.UploadFile) 
