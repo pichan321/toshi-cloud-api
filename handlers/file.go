@@ -23,15 +23,26 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+const MAX_UPLOAD_SIZE = 50 * 1024 * 1024
 
 func UploadFile(c echo.Context) (err error) {
 	db, err := cloud.GetPostgres()
 	if err != nil {
-		log.Printf("%v", err)
+		Logger.Error("Error establishing Postgres connection")
 		return ErrorHandler(c, 500, err)
 	}
 	
 	user := c.Get("userUuid").(string)
+	
+	contentLengthString := c.Request().Header["Content-Length"][0]
+	contentLength, err := strconv.Atoi(contentLengthString)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, structs.Message{Message: "Invalid file", Code: 400})
+	}
+	if contentLength > MAX_UPLOAD_SIZE {
+		return c.JSON(http.StatusBadRequest, structs.Message{Message: "File size should be above 50 MB", Code: 400})
+	}
+	
 	file, err := c.FormFile("file")
 	name := c.FormValue("name")
 	size := c.FormValue("size")
@@ -43,8 +54,8 @@ func UploadFile(c echo.Context) (err error) {
 	if bucket.Uuid == "" || bucket.AccessToken == "" {
 		return ErrorHandler(c, 500, err)
 	}
-	fmt.Println("Got here 1")
-	 fileInfo := structs.File{
+
+	fileInfo := structs.File{
 	 	Uuid: utils.GenerateUuid(),
 	 	Name: utils.FixEscape(name),
 	 	Size: size,
@@ -52,38 +63,41 @@ func UploadFile(c echo.Context) (err error) {
 	 	UploadedDate: timestamp,
 	 	UserUuid: user,
 	 	BucketUuid: bucket.Uuid,
-	 }
+	}
 
 	src, err := file.Open()
+
 	if err != nil {
+		Logger.Errorf(`Error opening file | Filename: %s, Size: %s, Size MB: %f`, name, sizeMb, actualSize)
 		return ErrorHandler(c, 500, err)
 	}
-	fmt.Println("Got here 2")
+
 	ctx := context.Background()
 	project, err := cloud.GetStorj(bucket.AccessToken, ctx)
 	if err != nil {
-		fmt.Println("Errrrrrrrrrrr")
-		log.Printf("could not open project: %v", err)
+		Logger.Errorf("Could not establish connection | Bucket Name: %s, Bucket Uuid: %s | %s", bucket.Name, bucket.Uuid, err)
 		return ErrorHandler(c, 500, err)
 	}
 	_, err = project.EnsureBucket(context.Background(), bucket.Name)
 	if err != nil {
-		return fmt.Errorf("could not ensure bucket: %v", err)
+		Logger.Errorf("Could not establish connection | Bucket Name: %s, Bucket Uuid: %s | %s", bucket.Name, bucket.Uuid, err)
+		return ErrorHandler(c, 500, err)
 	}
-	fmt.Println("Got here 3")
+
 	storjFilename := utils.StorjFilename(fileInfo.Uuid, fileInfo.Name, "___")
 	upload, err := project.UploadObject(ctx, bucket.Name, storjFilename, nil)
 	if err != nil {
 		return fmt.Errorf("could not initiate upload: %v", err)
 	}
+
 	data, err := ioutil.ReadAll(src)
+	
 	_, err = db.Exec(fmt.Sprintf(`insert into files (uuid, name, size, size_mb, uploaded_date, account_uuid, bucket_uuid, status) values ('%s', '%s', '%s', '%f','%s', '%s', '%s', '1')`, fileInfo.Uuid, storjFilename, fileInfo.Size, fileInfo.SizeMb, fileInfo.UploadedDate, fileInfo.UserUuid, fileInfo.BucketUuid))
 	
 	if err != nil {
-		return fmt.Errorf("could not upload data: %v", err)
+		return c.JSON(http.StatusInternalServerError, structs.Message{Message: "Internal server error", Code: 500})
 	}
-	fmt.Println("Got here 4")
-	// Copy the data to the upload.
+
 	buf := bytes.NewBuffer(data)
 	_, err = io.Copy(upload, buf)
 	if err != nil {
@@ -102,9 +116,6 @@ func UploadFile(c echo.Context) (err error) {
 	 	return ErrorHandler(c, 500, err)
 	}
 	err = utils.UpdateBucketSize(fileInfo.BucketUuid, fileInfo.SizeMb)
-	fmt.Println("Check")
-	fmt.Println(fileInfo.BucketUuid)
-	fmt.Println(fileInfo.SizeMb)
 	if err != nil {
 		return ErrorHandler(c, 500, err)
 	}
@@ -246,6 +257,7 @@ func MultipartUploadFile(c echo.Context) (err error) {
 		return ErrorHandler(c, 500, err)
 	}
 
+
 	data, err := ioutil.ReadAll(src)
 	if err != nil {
 		fmt.Printf("could not initiate upload: %v", err)
@@ -327,11 +339,10 @@ func DownloadFile(c echo.Context) (err error) {
 	if data["share_link"] == "" || data["file_name"] == "" {
 		return ErrorHandlerWithMsg(c, 404, nil, "Could not get download link")
 	}
-	fmt.Println("Download File: ")
-	fmt.Println(data["share_link"] + "/" + utils.FixEscape(data["file_name"]) + "?wrap=0")
+	// fmt.Println("Download File: ")
+	// fmt.Println(data["share_link"] + "/" + utils.FixEscape(data["file_name"]) + "?wrap=0")
 
 	return c.JSON(http.StatusOK, structs.Message{Message: data["share_link"] + "/" + utils.FixEscape(data["file_name"]) + "?wrap=0", Code: 200})
-	
 }
 
 func DownloadFileStream(c echo.Context) (err error) {
@@ -454,7 +465,6 @@ func GetFiles(c echo.Context) (err error) {
 			continue
 		}
 		files = append(files, file)
-
 	}
 
 	query = fmt.Sprintf(`select files.uuid, files.name, files.size, files.size_mb, files.uploaded_date, files.account_uuid, files.bucket_uuid, files.status, files.uploadid, files.hidden from files join sharing on files.uuid = sharing.handle where sharing.file_recipient = '%s'`, user)

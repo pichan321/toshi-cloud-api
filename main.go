@@ -1,10 +1,9 @@
 package main
 
 import (
+	"file-api/cloud"
 	"file-api/handlers"
 	"file-api/middlewares"
-	"file-api/cloud"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -31,11 +30,8 @@ func main() {
 		},
 	}
 
-
-	err := godotenv.Load()
-	if err != nil {
-		fmt.Printf("%v", err)
-	}
+	//Load environment variables
+	godotenv.Load()
 
 	router := echo.New()
 
@@ -56,9 +52,9 @@ func main() {
 	router.Use(middlewares.ValidateToken)
 
 
-	router.GET("/profile", handlers.GetUserMetadata) //ok
-	router.GET("/get-files", handlers.GetFiles) //ok
-	router.GET("/get-quota", handlers.GetQuota) //ok
+	router.GET("/profile", handlers.GetUserMetadata)
+	router.GET("/get-files", handlers.GetFiles)
+	router.GET("/get-quota", handlers.GetQuota)
 	router.GET("/get-users/:user/:handle/:username", handlers.GetUsersToShare)
 	// router.GET("/get-profile/:user", handlers.GetProfile) 
 	router.GET("/login-spotify", handlers.LoginSpotify)
@@ -68,14 +64,15 @@ func main() {
 	router.POST("/upload", handlers.UploadFile) 
 	router.POST("/prepare-multipart-upload", handlers.PrepareMultipartUpload)
 	router.POST("/multipart-upload", handlers.MultipartUploadFile)
-	// router.POST("/login", handlers.Login)
-	// router.POST("/register-account", handlers.RegisterAccount)
-	// router.POST("/change-password", handlers.ChangePassword)
-	router.POST("/parse-and-upload", handlers.ParseAndUpload) //ok
-	router.POST("/upload-profile", handlers.UploadProfile) //ok
+
+	router.POST("/parse-and-upload", handlers.ParseAndUpload)
+	// router.POST("/upload-profile", handlers.UploadProfile)
 
 	router.POST("/share-file", handlers.ShareFileShareAccess)
 	router.POST("/share-file/revoke", handlers.ShareFileRevokeAccess)
+	// router.POST("/login", handlers.Login)
+	// router.POST("/register-account", handlers.RegisterAccount)
+	// router.POST("/change-password", handlers.ChangePassword)
 
 	//DELETE
 	router.DELETE("/delete-shared-file", handlers.DeleteSharedFile)

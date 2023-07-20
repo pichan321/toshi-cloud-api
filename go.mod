@@ -7,7 +7,9 @@ require (
 	github.com/csimplestring/go-csv v0.0.0-20180328183906-5b8b3cd94f2c
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/joho/godotenv v1.4.0
+	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.1
+	github.com/x-cray/logrus-prefixed-formatter v0.5.2
 	gorm.io/gorm v1.25.2
 	storj.io/uplink v1.9.0
 )
@@ -22,11 +24,13 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/kr/text v0.2.0 // indirect
+	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/spacemonkeygo/monkit/v3 v3.0.17 // indirect
 	github.com/vivint/infectious v0.0.0-20200605153912-25a574ae18a3 // indirect
 	github.com/zeebo/errs v1.3.0 // indirect
+	golang.org/x/term v0.7.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	storj.io/common v0.0.0-20220414110316-a5cb7172d6bf // indirect

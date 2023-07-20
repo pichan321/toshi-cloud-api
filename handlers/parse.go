@@ -18,13 +18,15 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+const previewBytesLength = 5 * 1024 * 1024
+
 func ParseAndUpload(c echo.Context) error {
 	db, err := cloud.GetPostgres()
 	if err != nil {
 		return ErrorHandler(c, 500, err)
 	}
 
-	fileToParse := structs.FileParse{}
+	var fileToParse structs.FileParse
 	err = c.Bind(&fileToParse)
 	if err != nil {
 		return ErrorHandler(c, 404, err)
@@ -33,10 +35,12 @@ func ParseAndUpload(c echo.Context) error {
 	timestamp := time.Now().Format("2006-01-02 15:04:05 PM")
 
 	if fileToParse.Filename == "" {
-		temp := &fileToParse
-		temp.Filename = timestamp
+		fileToParse.Filename = timestamp
 	}
-	fileSize := len([]byte(fileToParse.Content)) / 1000000
+
+	
+
+	fileSize := len(fileToParse.Content) / 1000000
 	bucket := utils.GetBucketUuid(1.0)
 	fileInfo := structs.File{
 		Uuid: utils.GenerateUuid(),
@@ -60,7 +64,11 @@ func ParseAndUpload(c echo.Context) error {
 		return ErrorHandler(c, 500, err)
 	}
 	storjFilename := utils.StorjFilename(fileInfo.Uuid, fileInfo.Name, "___")
-	fileType := ProcessParsedText(fileToParse.Content)
+
+	previewLength := previewBytesLength
+	if previewLength >= fileSize {previewLength = fileSize}
+	
+	fileType := ProcessParsedText(fileToParse.Content[:previewLength])
 	finalFilename := storjFilename + fileType
 
 	upload, err := project.UploadObject(ctx, bucket.Name, finalFilename, nil)
@@ -74,7 +82,6 @@ func ParseAndUpload(c echo.Context) error {
 		return ErrorHandler(c, 500, err)
 	}
 
-
 	buf := bytes.NewBuffer([]byte(fileToParse.Content))
 	_, err = io.Copy(upload, buf)
 
@@ -82,8 +89,6 @@ func ParseAndUpload(c echo.Context) error {
 		_ = upload.Abort()
 		return fmt.Errorf("could not upload data: %v", err)
 	}
-
-
 
 	// Commit the uploaded object.
 	err = upload.Commit()
@@ -135,9 +140,7 @@ func isCSV(content string) string {
 
 func isJSON(content string) string {
 	var js interface{}
-	fmt.Println("Detecting JSON")
 	if  (json.Unmarshal([]byte(content), &js) == nil) {
-		fmt.Println("is JSON file")
 		return ".json"
 	}
 	return ""

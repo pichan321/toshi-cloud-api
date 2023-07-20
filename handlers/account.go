@@ -1,17 +1,10 @@
 package handlers
 
 import (
-	"bytes"
-	"context"
-	"errors"
 	"file-api/cloud"
 	"file-api/structs"
-	"file-api/utils"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -19,10 +12,30 @@ import (
 func GetUserMetadata(c echo.Context) error {
 	userClaims, ok := c.Get("user").(structs.CustomClaims)
 	if !ok {
+		Logger.Errorf("Error getting metadata for user: %s", c.Get("userUuid").(string))
 		return c.JSON(http.StatusInternalServerError, nil)
 	}
-	
 	return c.JSON(http.StatusOK, userClaims)
+}
+
+func GetQuota(c echo.Context) error {
+	db, err := cloud.GetPostgres()
+	if err != nil {
+		return ErrorHandler(c, 500, err)
+	}
+
+	userUuid := c.Get("userUuid")
+	if userUuid == "" {
+		return c.JSON(http.StatusBadRequest, structs.Message{Message: "A valid token is required.", Code: 400})
+	}
+	
+	query := fmt.Sprintf(`SELECT sum(size_mb) FROM files where account_uuid = '%s'`, userUuid)
+	var quota float64
+	row := db.QueryRowx(query)
+	row.Scan(&quota)
+
+	defer db.Close()
+	return c.JSON(http.StatusOK, fmt.Sprintf("%0.2f", quota / 1000.0))
 }
 
 // func RegisterAccount(c echo.Context) error {
@@ -150,108 +163,86 @@ func GetUserMetadata(c echo.Context) error {
 // 	return c.JSON(http.StatusOK, structs.Message{Message: "Password changed!", Code: 200})
 // }
 
-func GetQuota(c echo.Context) error {
-	db, err := cloud.GetPostgres()
-	if err != nil {
-		return ErrorHandler(c, 500, err)
-	}
 
-	userUuid := c.Get("userUuid")
-	if userUuid == "" {
-		return c.JSON(http.StatusBadRequest, "")
-	}
+// func UploadProfile(c echo.Context) error {
+// 	db, err := cloud.GetPostgres()
+// 	if err != nil {
+// 		return ErrorHandler(c, 500, errors.New("cannot get postgres"))
+// 	}
 	
-	fmt.Println("USER UUID")
-	fmt.Println(userUuid)
-	query := fmt.Sprintf(`SELECT sum(size_mb) FROM files where account_uuid = '%s'`, userUuid)
-	var quota float64
-	row := db.QueryRowx(query)
-	row.Scan(&quota)
-	fmt.Println("Quota")
-	fmt.Println(quota)
-	defer db.Close()
-	return c.JSON(http.StatusOK, fmt.Sprintf("%0.2f", quota / 1000.0))
-}
-
-func UploadProfile(c echo.Context) error {
-	db, err := cloud.GetPostgres()
-	if err != nil {
-		return ErrorHandler(c, 500, errors.New("cannot get postgres"))
-	}
-	
-	user := c.FormValue("userUuid")
-	file, err := c.FormFile("file")
-	fileName := c.FormValue("fileName")
-	bucket := utils.GetBucketUuid(5.0)
-	fmt.Println("BUCKET PROFILE")
-	fmt.Println(bucket)
-	if bucket.Uuid == "" || bucket.AccessToken == "" {
-		return ErrorHandler(c, 500, errors.New("invalid bucket"))
-	}
+// 	user := c.FormValue("userUuid")
+// 	file, err := c.FormFile("file")
+// 	fileName := c.FormValue("fileName")
+// 	bucket := utils.GetBucketUuid(5.0)
+// 	fmt.Println("BUCKET PROFILE")
+// 	fmt.Println(bucket)
+// 	if bucket.Uuid == "" || bucket.AccessToken == "" {
+// 		return ErrorHandler(c, 500, errors.New("invalid bucket"))
+// 	}
 	
 
-	src, err := file.Open()
-	if err != nil {
-		return ErrorHandler(c, 500, errors.New("cannot open file"))
-	}
+// 	src, err := file.Open()
+// 	if err != nil {
+// 		return ErrorHandler(c, 500, errors.New("cannot open file"))
+// 	}
 
-	ctx := context.Background()
-	project, err := cloud.GetStorj(bucket.AccessToken, ctx)
-	if err != nil {
-		return ErrorHandler(c, 500, errors.New("cannot open storj"))
-	}
-	_, err = project.EnsureBucket(context.Background(), bucket.Name)
-	if err != nil {
-		return ErrorHandler(c, 500, errors.New("could not ensure bucket"))
-	}
-	storjFileName := strings.ReplaceAll(user, "-", "_") + "_" + "profile" + "_" + fileName
-	upload, err := project.UploadObject(ctx, bucket.Name, storjFileName, nil)
-	if err != nil {
-		return fmt.Errorf("could not initiate upload: %v", err)
-	}
-	data, err := ioutil.ReadAll(src)
-	var oldProfile string
-	row := db.QueryRowx(fmt.Sprintf(`select link from profile where uuid = '%s'`, user))
-	row.Scan(&oldProfile)
+// 	ctx := context.Background()
+// 	project, err := cloud.GetStorj(bucket.AccessToken, ctx)
+// 	if err != nil {
+// 		return ErrorHandler(c, 500, errors.New("cannot open storj"))
+// 	}
+// 	_, err = project.EnsureBucket(context.Background(), bucket.Name)
+// 	if err != nil {
+// 		return ErrorHandler(c, 500, errors.New("could not ensure bucket"))
+// 	}
+// 	storjFileName := strings.ReplaceAll(user, "-", "_") + "_" + "profile" + "_" + fileName
+// 	upload, err := project.UploadObject(ctx, bucket.Name, storjFileName, nil)
+// 	if err != nil {
+// 		return fmt.Errorf("could not initiate upload: %v", err)
+// 	}
+// 	data, err := ioutil.ReadAll(src)
+// 	var oldProfile string
+// 	row := db.QueryRowx(fmt.Sprintf(`select link from profile where uuid = '%s'`, user))
+// 	row.Scan(&oldProfile)
 
-	project.DeleteObject(ctx, bucket.Name, oldProfile)
+// 	project.DeleteObject(ctx, bucket.Name, oldProfile)
 
-	_, err = db.Exec(fmt.Sprintf(`update profile set link = '%s' where uuid = '%s'`, bucket.ShareLink + "/" + storjFileName, user))
+// 	_, err = db.Exec(fmt.Sprintf(`update profile set link = '%s' where uuid = '%s'`, bucket.ShareLink + "/" + storjFileName, user))
 
-	if err != nil {
-		return fmt.Errorf("could not upload data: %v", err)
-	}
-	// Copy the data to the upload.
-	buf := bytes.NewBuffer(data)
-	_, err = io.Copy(upload, buf)
-	if err != nil {
-		_ = upload.Abort()
-		return fmt.Errorf("could not upload data: %v", err)
-	}
+// 	if err != nil {
+// 		return fmt.Errorf("could not upload data: %v", err)
+// 	}
+// 	// Copy the data to the upload.
+// 	buf := bytes.NewBuffer(data)
+// 	_, err = io.Copy(upload, buf)
+// 	if err != nil {
+// 		_ = upload.Abort()
+// 		return fmt.Errorf("could not upload data: %v", err)
+// 	}
 
-	// Commit the uploaded object.
-	err = upload.Commit()
-	if err != nil {
-		return fmt.Errorf("could not commit uploaded object: %v", err)
-	}
-
-
-	defer db.Close()
-	defer project.Close()
-	defer src.Close()
-	return c.JSON(http.StatusOK, structs.Message{Message: bucket.ShareLink + "/" + storjFileName, Code: 200})
-}
-
-func GetProfile(c echo.Context) error {
-	db, _ := cloud.GetPostgres()
-
-	user := c.Param("user")
-
-	query := fmt.Sprintf(`select link from profile where uuid = '%s'`, user) 
-	var link string
-	row := db.QueryRowx(query)
-	row.Scan(&link)
+// 	// Commit the uploaded object.
+// 	err = upload.Commit()
+// 	if err != nil {
+// 		return fmt.Errorf("could not commit uploaded object: %v", err)
+// 	}
 
 
-	return c.JSON(http.StatusOK, link + `?wrap=0`)
-}
+// 	defer db.Close()
+// 	defer project.Close()
+// 	defer src.Close()
+// 	return c.JSON(http.StatusOK, structs.Message{Message: bucket.ShareLink + "/" + storjFileName, Code: 200})
+// }
+
+// func GetProfile(c echo.Context) error {
+// 	db, _ := cloud.GetPostgres()
+
+// 	user := c.Param("user")
+
+// 	query := fmt.Sprintf(`select link from profile where uuid = '%s'`, user) 
+// 	var link string
+// 	row := db.QueryRowx(query)
+// 	row.Scan(&link)
+
+
+// 	return c.JSON(http.StatusOK, link + `?wrap=0`)
+// }
