@@ -24,7 +24,7 @@ import (
 
 const (
 	MAX_UPLOAD_SIZE = 50 * 1024 * 1024
-	MAX_READ_SIZE = 10 * 1024 * 1024
+	MAX_READ_SIZE = 25 * 1024 * 1024
 )
 
 
